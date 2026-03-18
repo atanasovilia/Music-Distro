@@ -64,6 +64,8 @@ const DOM = {
   toast: $('toast'),
 };
 
+installGlobalErrorOverlay();
+
 async function init() {
   buildSceneList();
   switchScene('beach', false);
@@ -789,4 +791,56 @@ function showToast(msg) {
   _toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2800);
 }
 
-init();
+function installGlobalErrorOverlay() {
+  window.addEventListener('error', event => {
+    const source = event?.filename ? `${event.filename}:${event.lineno || 0}` : 'runtime';
+    const message = event?.error?.stack || event?.message || 'Unknown error';
+    showFatalOverlay(`Runtime Error (${source})`, message);
+  });
+
+  window.addEventListener('unhandledrejection', event => {
+    const reason = event?.reason;
+    const message = reason?.stack || reason?.message || String(reason || 'Unknown promise rejection');
+    showFatalOverlay('Unhandled Promise Rejection', message);
+  });
+}
+
+function showFatalOverlay(title, details) {
+  try {
+    const existing = document.getElementById('fatal-error-overlay');
+    if (existing) existing.remove();
+
+    const wrap = document.createElement('div');
+    wrap.id = 'fatal-error-overlay';
+    wrap.style.cssText = [
+      'position:fixed',
+      'inset:0',
+      'z-index:2147483647',
+      'background:#0f1117',
+      'color:#f6f7fb',
+      'padding:20px',
+      'font-family:Consolas, Monaco, monospace',
+      'overflow:auto',
+      'white-space:pre-wrap',
+    ].join(';');
+
+    const safeTitle = escapeHtml(title || 'Application Error');
+    const safeDetails = escapeHtml(details || 'No additional details');
+    wrap.innerHTML = `
+      <div style="max-width:960px;margin:0 auto;line-height:1.4">
+        <div style="font-size:20px;font-weight:700;margin-bottom:10px">${safeTitle}</div>
+        <div style="font-size:12px;opacity:.8;margin-bottom:12px">The app crashed before finishing startup.</div>
+        <div style="background:#161a24;border:1px solid #303748;border-radius:10px;padding:12px">${safeDetails}</div>
+        <div style="margin-top:12px;font-size:12px;opacity:.9">Try reloading the Activity after redeploy. If this repeats, share this error block.</div>
+      </div>
+    `;
+
+    document.body.appendChild(wrap);
+  } catch (overlayErr) {
+    console.error('[FatalOverlay] Could not render overlay:', overlayErr);
+  }
+}
+
+init().catch(err => {
+  showFatalOverlay('Startup Failed', err?.stack || err?.message || String(err || 'Unknown startup failure'));
+});
