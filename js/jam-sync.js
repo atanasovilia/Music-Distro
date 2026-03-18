@@ -7,52 +7,116 @@ export class JamSync {
     this.userName = 'Guest';
     this.state = null;
     this._pollTimer = null;
+    this._pollDelayMs = 1500;
+    this._refreshPromise = null;
+    this._destroyed = false;
     this.onState = () => {};
   }
 
   async init(roomId, userId, userName) {
+    this.destroy();
     this.roomId = roomId || 'global';
     this.userId = userId;
     this.userName = userName || 'Guest';
+    this._destroyed = false;
     await this.refresh();
     this._startPolling();
   }
 
   destroy() {
-    clearInterval(this._pollTimer);
+    this._destroyed = true;
+    clearTimeout(this._pollTimer);
     this._pollTimer = null;
+    this._refreshPromise = null;
   }
 
   _startPolling() {
-    clearInterval(this._pollTimer);
-    this._pollTimer = setInterval(() => {
-      this.refresh().catch(() => {});
-    }, 2500);
+    clearTimeout(this._pollTimer);
+
+    const poll = async () => {
+      if (this._destroyed) return;
+
+      try {
+        await this.refresh();
+      } catch {
+        // Keep polling; transient fetch failures should not stop sync.
+      } finally {
+        if (!this._destroyed) {
+          this._pollTimer = setTimeout(poll, this._pollDelayMs);
+        }
+      }
+    };
+
+    this._pollTimer = setTimeout(poll, this._pollDelayMs);
   }
 
   async refresh() {
-    const params = new URLSearchParams({ roomId: this.roomId });
-    const res = await fetch(`${API_PATH}?${params}`, { cache: 'no-store' });
-    if (!res.ok) throw new Error('Could not load jam room state');
-    const data = await res.json();
-    this._setState(data.state);
-    return this.state;
+    if (this._refreshPromise) {
+      return this._refreshPromise;
+    }
+
+    const requestRoomId = this.roomId;
+    const params = new URLSearchParams({ roomId: requestRoomId });
+    const request = fetch(`${API_PATH}?${params}`, { cache: 'no-store' })
+      .then(async res => {
+        if (!res.ok) throw new Error('Could not load jam room state');
+        const data = await res.json();
+        if (this._destroyed || requestRoomId !== this.roomId) {
+          return this.state;
+        }
+        this._setState(data.state);
+        return this.state;
+      })
+      .finally(() => {
+        if (this._refreshPromise === request) {
+          this._refreshPromise = null;
+        }
+      });
+
+    this._refreshPromise = request;
+    return request;
+  }
+
+  _shouldApplyState(next) {
+    if (!next) return false;
+    if (!this.state) return true;
+
+    const nextVersion = Number(next.version || 0);
+    const currentVersion = Number(this.state.version || 0);
+
+    if (nextVersion > currentVersion) return true;
+    if (nextVersion < currentVersion) return false;
+
+    const nextUpdatedAt = Number(next.updatedAt || 0);
+    const currentUpdatedAt = Number(this.state.updatedAt || 0);
+
+    return nextUpdatedAt >= currentUpdatedAt;
   }
 
   _setState(next) {
-    const prevVersion = this.state?.version || 0;
+    if (!this._shouldApplyState(next)) {
+      return;
+    }
+
+    const hadState = !!this.state;
+    const prevVersion = Number(this.state?.version || 0);
+    const prevUpdatedAt = Number(this.state?.updatedAt || 0);
     this.state = next;
-    if ((next?.version || 0) !== prevVersion) {
+
+    const nextVersion = Number(next?.version || 0);
+    const nextUpdatedAt = Number(next?.updatedAt || 0);
+    if (!hadState || nextVersion !== prevVersion || nextUpdatedAt !== prevUpdatedAt) {
       this.onState(next);
     }
   }
 
   async _action(action, payload = {}) {
+    const requestRoomId = this.roomId;
     const res = await fetch(API_PATH, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        roomId: this.roomId,
+        roomId: requestRoomId,
         action,
         payload,
         userId: this.userId,
@@ -62,7 +126,9 @@ export class JamSync {
 
     if (!res.ok) throw new Error('Jam action failed');
     const data = await res.json();
-    this._setState(data.state);
+    if (!this._destroyed && requestRoomId === this.roomId) {
+      this._setState(data.state);
+    }
     return this.state;
   }
 

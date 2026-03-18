@@ -24,6 +24,10 @@ let jamState = null;
 let isJamHost = false;
 let lastRemotePlaybackStamp = 0;
 let lastHostPublishAt = 0;
+let hostPublishTimer = null;
+
+const HOST_PLAYBACK_PUBLISH_MS = 1500;
+const REMOTE_SEEK_DRIFT_MS = 2000;
 
 const $ = id => document.getElementById(id);
 
@@ -223,8 +227,14 @@ function renderJamSearchResults(tracks) {
 }
 
 async function onJamState(state) {
+  const wasJamHost = isJamHost;
   jamState = state;
   isJamHost = state?.hostId === jamUserId;
+  syncHostPlaybackLoop();
+
+  if (isJamHost && !wasJamHost) {
+    maybePublishHostPlayback(true);
+  }
 
   DOM.btnJamHost.textContent = isJamHost ? 'Release Host' : (state?.hostName ? `Host: ${state.hostName}` : 'Become Host');
 
@@ -234,8 +244,9 @@ async function onJamState(state) {
   const pb = state?.playback;
   if (!pb || isJamHost || !spotify.isLoggedIn()) return;
 
-  if (pb.startedAt && pb.startedAt <= lastRemotePlaybackStamp) return;
-  lastRemotePlaybackStamp = pb.startedAt || Date.now();
+  const remoteStamp = Number(pb.startedAt || state?.updatedAt || Date.now());
+  if (remoteStamp <= lastRemotePlaybackStamp) return;
+  lastRemotePlaybackStamp = remoteStamp;
   await applyRemotePlayback(pb);
 }
 
@@ -313,7 +324,7 @@ function maybePublishHostPlayback(force = false) {
   if (!isJamHost || !spotify.isLoggedIn() || !jamState) return;
 
   const now = Date.now();
-  if (!force && now - lastHostPublishAt < 3500) return;
+  if (!force && now - lastHostPublishAt < HOST_PLAYBACK_PUBLISH_MS) return;
 
   const track = spotify.currentTrack;
   if (!track?.uri) return;
@@ -329,12 +340,44 @@ function maybePublishHostPlayback(force = false) {
   }).catch(() => {});
 }
 
+function syncHostPlaybackLoop() {
+  const shouldRun = isJamHost && spotify.isLoggedIn();
+
+  if (!shouldRun) {
+    clearInterval(hostPublishTimer);
+    hostPublishTimer = null;
+    lastHostPublishAt = 0;
+    return;
+  }
+
+  if (hostPublishTimer) return;
+  hostPublishTimer = setInterval(() => {
+    maybePublishHostPlayback(false);
+  }, HOST_PLAYBACK_PUBLISH_MS);
+}
+
+function getRemoteTargetPosition(pb) {
+  let targetPos = Math.max(0, Math.round(Number(pb?.positionMs || 0)));
+
+  if (pb?.isPlaying && pb?.startedAt) {
+    targetPos += Math.max(0, Date.now() - Number(pb.startedAt));
+  }
+
+  const durationMs = Math.max(0, Math.round(Number(pb?.durationMs || 0)));
+  if (durationMs > 0) {
+    targetPos = Math.min(targetPos, durationMs);
+  }
+
+  return targetPos;
+}
+
 async function applyRemotePlayback(pb) {
   try {
     const currentUri = spotify.currentTrack?.uri;
+    const targetPos = getRemoteTargetPosition(pb);
 
     if (currentUri !== pb.trackUri) {
-      await spotify.play(null, [pb.trackUri]);
+      await spotify.play(null, [pb.trackUri], { positionMs: targetPos });
       if (!pb.isPlaying) {
         await spotify.pause();
       }
@@ -342,10 +385,9 @@ async function applyRemotePlayback(pb) {
       return;
     }
 
-    const targetPos = Math.max(0, Math.round(pb.positionMs + (pb.isPlaying ? (Date.now() - pb.startedAt) : 0)));
     const drift = Math.abs((spotify.positionMs || 0) - targetPos);
 
-    if (drift > 3000) {
+    if (drift > REMOTE_SEEK_DRIFT_MS) {
       await spotify.seekTo(targetPos);
     }
 
@@ -472,6 +514,7 @@ DOM.btnAllOff.addEventListener('click', () => {
 DOM.btnConnect.addEventListener('click', async () => {
   if (spotify.isLoggedIn()) {
     spotify.logout();
+    syncHostPlaybackLoop();
     DOM.btnConnect.textContent = 'Connect Spotify';
     DOM.npMini.style.display = 'none';
     DOM.btnConnect.style.display = 'flex';
@@ -515,6 +558,14 @@ async function connectSpotify() {
     DOM.btnConnect.style.display = 'none';
     DOM.npMini.style.display = 'flex';
     DOM.btnConnect.disabled = false;
+    syncHostPlaybackLoop();
+    if (isJamHost) {
+      maybePublishHostPlayback(true);
+    } else if (jamState?.playback) {
+      applyRemotePlayback(jamState.playback).catch(err => {
+        console.warn('[Jam] Initial remote sync failed:', err?.message || err);
+      });
+    }
     showToast('Spotify ready');
   };
 
@@ -535,6 +586,7 @@ async function connectSpotify() {
   };
 
   spotify.onError = msg => {
+    syncHostPlaybackLoop();
     showToast('Spotify: ' + msg);
     DOM.btnConnect.style.display = 'flex';
     DOM.btnConnect.textContent = 'Connect Spotify';
@@ -544,6 +596,7 @@ async function connectSpotify() {
   try {
     await spotify.initPlayer();
   } catch {
+    syncHostPlaybackLoop();
     DOM.btnConnect.style.display = 'flex';
     DOM.btnConnect.textContent = 'Connect Spotify';
     DOM.btnConnect.disabled = false;

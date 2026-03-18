@@ -309,12 +309,15 @@ export class SpotifyManager {
     }
   }
 
-  async play(contextUri = null, uris = null) {
+  async play(contextUri = null, uris = null, options = {}) {
     if (!this.deviceId) return;
     const token = await this.getValidToken();
     const body = {};
     if (contextUri) body.context_uri = contextUri;
     if (uris) body.uris = uris;
+    if (Number.isFinite(options?.positionMs)) {
+      body.position_ms = Math.max(0, Math.round(options.positionMs));
+    }
 
     const res = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${this.deviceId}`, {
       method: 'PUT',
