@@ -64,8 +64,6 @@ const DOM = {
   toast: $('toast'),
 };
 
-installGlobalErrorOverlay();
-
 async function init() {
   buildSceneList();
   switchScene('beach', false);
@@ -100,8 +98,8 @@ async function init() {
 async function initJamRoom() {
   const params = new URLSearchParams(window.location.search);
   jamRoomId = (params.get('room') || 'global').toLowerCase();
-  if (DOM.roomChip) DOM.roomChip.textContent = `Room: ${jamRoomId}`;
-  if (DOM.voteLabel) DOM.voteLabel.textContent = 'JAM SUGGESTIONS';
+  DOM.roomChip.textContent = `Room: ${jamRoomId}`;
+  DOM.voteLabel.textContent = 'JAM SUGGESTIONS';
 
   jam.onState = state => {
     onJamState(state).catch(err => {
@@ -114,14 +112,12 @@ async function initJamRoom() {
     await onJamState(jam.state);
   } catch (err) {
     console.warn('[Jam] Could not initialize room:', err?.message || err);
-    if (DOM.voteOptions) {
-      DOM.voteOptions.innerHTML = '<div class="vote-empty">Jam backend unavailable. Ambient mode still works.</div>';
-    }
+    DOM.voteOptions.innerHTML = '<div class="vote-empty">Jam backend unavailable. Ambient mode still works.</div>';
   }
 }
 
 function bindJamControls() {
-  DOM.btnShareRoom?.addEventListener('click', async () => {
+  DOM.btnShareRoom.addEventListener('click', async () => {
     const url = getRoomShareUrl();
     const copied = await copyText(url);
     if (copied) {
@@ -132,7 +128,7 @@ function bindJamControls() {
     window.prompt('Copy room link:', url);
   });
 
-  DOM.btnJamHost?.addEventListener('click', async () => {
+  DOM.btnJamHost.addEventListener('click', async () => {
     try {
       if (isJamHost) {
         await jam.releaseHost();
@@ -147,14 +143,14 @@ function bindJamControls() {
     }
   });
 
-  DOM.btnJamSearch?.addEventListener('click', () => {
+  DOM.btnJamSearch.addEventListener('click', () => {
     runJamSearch().catch(err => {
       console.warn('[Jam] Search failed:', err?.message || err);
       showToast('Search failed');
     });
   });
 
-  DOM.jamSearchInput?.addEventListener('keydown', e => {
+  DOM.jamSearchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
       runJamSearch().catch(() => showToast('Search failed'));
@@ -163,7 +159,6 @@ function bindJamControls() {
 }
 
 async function runJamSearch() {
-  if (!DOM.jamSearchInput || !DOM.jamSearchResults || !DOM.btnJamSearch) return;
   if (!spotify.isLoggedIn()) {
     showToast('Connect Spotify to search tracks');
     return;
@@ -188,7 +183,6 @@ async function runJamSearch() {
 }
 
 function renderJamSearchResults(tracks) {
-  if (!DOM.jamSearchResults) return;
   DOM.jamSearchResults.innerHTML = '';
 
   if (!tracks.length) {
@@ -232,9 +226,7 @@ async function onJamState(state) {
   jamState = state;
   isJamHost = state?.hostId === jamUserId;
 
-  if (DOM.btnJamHost) {
-    DOM.btnJamHost.textContent = isJamHost ? 'Release Host' : (state?.hostName ? `Host: ${state.hostName}` : 'Become Host');
-  }
+  DOM.btnJamHost.textContent = isJamHost ? 'Release Host' : (state?.hostName ? `Host: ${state.hostName}` : 'Become Host');
 
   renderSuggestionList(state?.suggestions || []);
   updateVoteFooter();
@@ -248,7 +240,6 @@ async function onJamState(state) {
 }
 
 function renderSuggestionList(suggestions) {
-  if (!DOM.voteOptions) return;
   DOM.voteOptions.innerHTML = '';
 
   if (!suggestions.length) {
@@ -366,7 +357,6 @@ async function applyRemotePlayback(pb) {
 }
 
 function buildSceneList() {
-  if (!DOM.sceneList) return;
   DOM.sceneList.innerHTML = '';
   SCENES.forEach(scene => {
     const btn = document.createElement('button');
@@ -383,11 +373,11 @@ function switchScene(id, playAudio = true) {
   const prev = currentSceneId;
   currentSceneId = id;
 
-  if (DOM.body) DOM.body.className = `scene-${id}`;
-  if (DOM.sceneBg) DOM.sceneBg.className = `scene-bg scene-${id}`;
-  if (DOM.sceneEmoji) DOM.sceneEmoji.textContent = scene.emoji;
-  if (DOM.sceneName) DOM.sceneName.textContent = scene.name;
-  if (DOM.sceneTagline) DOM.sceneTagline.textContent = scene.tagline;
+  DOM.body.className = `scene-${id}`;
+  DOM.sceneBg.className = `scene-bg scene-${id}`;
+  DOM.sceneEmoji.textContent = scene.emoji;
+  DOM.sceneName.textContent = scene.name;
+  DOM.sceneTagline.textContent = scene.tagline;
 
   document.querySelectorAll('.scene-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.id === id);
@@ -402,7 +392,6 @@ function switchScene(id, playAudio = true) {
 }
 
 function buildMixer(scene, startAudio = true) {
-  if (!DOM.mixerChannels) return;
   DOM.mixerChannels.innerHTML = '';
 
   scene.ambients.forEach(ch => {
@@ -457,7 +446,7 @@ function buildMixer(scene, startAudio = true) {
   });
 }
 
-DOM.btnAllOn?.addEventListener('click', () => {
+DOM.btnAllOn.addEventListener('click', () => {
   if (!ambient._ready) {
     ambient.init();
     ambient.resume();
@@ -474,13 +463,13 @@ DOM.btnAllOn?.addEventListener('click', () => {
   ambientJamStarted = true;
 });
 
-DOM.btnAllOff?.addEventListener('click', () => {
+DOM.btnAllOff.addEventListener('click', () => {
   ambient.toggleAll(false);
   document.querySelectorAll('.channel').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.toggle input').forEach(el => (el.checked = false));
 });
 
-DOM.btnConnect?.addEventListener('click', async () => {
+DOM.btnConnect.addEventListener('click', async () => {
   if (spotify.isLoggedIn()) {
     spotify.logout();
     DOM.btnConnect.textContent = 'Connect Spotify';
@@ -519,7 +508,6 @@ async function handleSpotifyCallback() {
 }
 
 async function connectSpotify() {
-  if (!DOM.btnConnect || !DOM.npMini || !DOM.npMiniText) return;
   DOM.btnConnect.textContent = 'Connecting...';
   DOM.btnConnect.disabled = true;
 
@@ -563,7 +551,7 @@ async function connectSpotify() {
 }
 
 function bindPlayerControls() {
-  DOM.btnPlay?.addEventListener('click', async () => {
+  DOM.btnPlay.addEventListener('click', async () => {
     ambient.init();
     ambient.resume();
 
@@ -582,7 +570,7 @@ function bindPlayerControls() {
     }
   });
 
-  DOM.btnPrev?.addEventListener('click', async () => {
+  DOM.btnPrev.addEventListener('click', async () => {
     if (!spotify.isLoggedIn()) {
       showToast('Connect Spotify to use track controls');
       return;
@@ -591,7 +579,7 @@ function bindPlayerControls() {
     maybePublishHostPlayback(true);
   });
 
-  DOM.btnNext?.addEventListener('click', async () => {
+  DOM.btnNext.addEventListener('click', async () => {
     if (!spotify.isLoggedIn()) {
       showToast('Connect Spotify to use track controls');
       return;
@@ -600,7 +588,7 @@ function bindPlayerControls() {
     maybePublishHostPlayback(true);
   });
 
-  DOM.progressTrack?.addEventListener('click', async e => {
+  DOM.progressTrack.addEventListener('click', async e => {
     if (!spotify.isLoggedIn()) return;
     try {
       const pct = e.offsetX / DOM.progressTrack.offsetWidth;
@@ -613,7 +601,7 @@ function bindPlayerControls() {
 }
 
 function bindVolumeControls() {
-  DOM.masterVolume?.addEventListener('input', () => {
+  DOM.masterVolume.addEventListener('input', () => {
     const v = DOM.masterVolume.value / 100;
     spotify.setVolume(v);
     ambient.setMasterVolume(v);
@@ -621,11 +609,9 @@ function bindVolumeControls() {
 }
 
 function enableDiscordJamMode() {
-  if (DOM.btnConnect) DOM.btnConnect.textContent = 'Spotify (Optional)';
+  DOM.btnConnect.textContent = 'Spotify (Optional)';
   if (!spotify.isLoggedIn()) {
-    if (DOM.voteOptions) {
-      DOM.voteOptions.innerHTML = '<div class="vote-empty">Ambient jam is live. Spotify is optional.</div>';
-    }
+    DOM.voteOptions.innerHTML = '<div class="vote-empty">Ambient jam is live. Spotify is optional.</div>';
   }
   updateVoteFooter();
   startAmbientJam();
@@ -669,7 +655,6 @@ function startAmbientJam() {
 }
 
 function updateTrackUI(track) {
-  if (!DOM.trackName || !DOM.trackArtist || !DOM.trackArt) return;
   DOM.trackName.textContent = track.name;
   DOM.trackArtist.textContent = track.artists?.map(a => a.name).join(', ') || '';
 
@@ -682,15 +667,11 @@ function updateTrackUI(track) {
 }
 
 function updatePlayBtn(isPlaying) {
-  if (!DOM.btnPlay) return;
-  const playIcon = DOM.btnPlay.querySelector('.icon-play');
-  const pauseIcon = DOM.btnPlay.querySelector('.icon-pause');
-  if (playIcon) playIcon.style.display = isPlaying ? 'none' : 'block';
-  if (pauseIcon) pauseIcon.style.display = isPlaying ? 'block' : 'none';
+  DOM.btnPlay.querySelector('.icon-play').style.display = isPlaying ? 'none' : 'block';
+  DOM.btnPlay.querySelector('.icon-pause').style.display = isPlaying ? 'block' : 'none';
 }
 
 function updateProgress(pos, dur) {
-  if (!DOM.progressFill || !DOM.timeCurrent || !DOM.timeTotal) return;
   const pct = dur ? (pos / dur) * 100 : 0;
   DOM.progressFill.style.width = pct + '%';
   DOM.timeCurrent.textContent = msToTime(pos);
@@ -698,7 +679,6 @@ function updateProgress(pos, dur) {
 }
 
 function resetPlayer() {
-  if (!DOM.trackName || !DOM.trackArtist || !DOM.trackArt || !DOM.progressFill || !DOM.timeCurrent || !DOM.timeTotal) return;
   DOM.trackName.textContent = isDiscordActivity ? 'Ambient Jam Live' : 'Not Connected';
   DOM.trackArtist.textContent = isDiscordActivity ? 'Spotify is optional in Discord mode' : 'Connect Spotify to listen';
   DOM.trackArt.innerHTML = '<div class="art-default">♪</div>';
@@ -709,7 +689,6 @@ function resetPlayer() {
 }
 
 function updateVoteFooter() {
-  if (!DOM.voteFooter) return;
   const n = discord.getParticipantCount();
   const suggestionCount = jamState?.suggestions?.length || 0;
   const hostLine = jamState?.hostName ? `host: ${jamState.hostName}` : 'no host';
@@ -784,63 +763,10 @@ async function copyText(value) {
 
 let _toastTimer;
 function showToast(msg) {
-  if (!DOM.toast) return;
   DOM.toast.textContent = msg;
   DOM.toast.classList.add('show');
   clearTimeout(_toastTimer);
   _toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2800);
 }
 
-function installGlobalErrorOverlay() {
-  window.addEventListener('error', event => {
-    const source = event?.filename ? `${event.filename}:${event.lineno || 0}` : 'runtime';
-    const message = event?.error?.stack || event?.message || 'Unknown error';
-    showFatalOverlay(`Runtime Error (${source})`, message);
-  });
-
-  window.addEventListener('unhandledrejection', event => {
-    const reason = event?.reason;
-    const message = reason?.stack || reason?.message || String(reason || 'Unknown promise rejection');
-    showFatalOverlay('Unhandled Promise Rejection', message);
-  });
-}
-
-function showFatalOverlay(title, details) {
-  try {
-    const existing = document.getElementById('fatal-error-overlay');
-    if (existing) existing.remove();
-
-    const wrap = document.createElement('div');
-    wrap.id = 'fatal-error-overlay';
-    wrap.style.cssText = [
-      'position:fixed',
-      'inset:0',
-      'z-index:2147483647',
-      'background:#0f1117',
-      'color:#f6f7fb',
-      'padding:20px',
-      'font-family:Consolas, Monaco, monospace',
-      'overflow:auto',
-      'white-space:pre-wrap',
-    ].join(';');
-
-    const safeTitle = escapeHtml(title || 'Application Error');
-    const safeDetails = escapeHtml(details || 'No additional details');
-    wrap.innerHTML = `
-      <div style="max-width:960px;margin:0 auto;line-height:1.4">
-        <div style="font-size:20px;font-weight:700;margin-bottom:10px">${safeTitle}</div>
-        <div style="font-size:12px;opacity:.8;margin-bottom:12px">The app crashed before finishing startup.</div>
-        <div style="background:#161a24;border:1px solid #303748;border-radius:10px;padding:12px">${safeDetails}</div>
-        <div style="margin-top:12px;font-size:12px;opacity:.9">Try reloading the Activity after redeploy. If this repeats, share this error block.</div>
-      </div>
-    `;
-
-    document.body.appendChild(wrap);
-  } catch (overlayErr) {
-    console.error('[FatalOverlay] Could not render overlay:', overlayErr);
-  }
-}
-
-init().catch(err => {
-  showFatalOverlay('Startup Failed', err?.stack || err?.message || String(err || 'Unknown startup failure'));
-});
+init();
