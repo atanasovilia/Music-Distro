@@ -9,7 +9,7 @@ Minimal static build for Vercel hosting.
 - Users can become host, suggest tracks, vote, and host can push playback sync
 - Spotify login is still required per user for Spotify playback controls
 
-Note: the current Jam state backend is in-memory for quick rollout. It works for lightweight testing, but it is not durable storage. For production-grade rooms, switch the API to persistent storage (Redis, Postgres, or Supabase).
+The Jam API now supports persistent storage through Upstash Redis on Vercel. If `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` are present, room state is stored in Redis. If they are missing, the API falls back to local in-memory storage for lightweight development.
 
 ## Project Structure
 
@@ -29,7 +29,9 @@ Note: the current Jam state backend is in-memory for quick rollout. It works for
 2. Framework preset: Other.
 3. Build command: leave empty.
 4. Output directory: leave empty.
-5. Deploy.
+5. Add an Upstash Redis integration from the Vercel Marketplace.
+6. Confirm the project has `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` set.
+7. Deploy.
 
 The app is static, and vercel.json rewrites /callback to /index.html so Spotify OAuth return works.
 

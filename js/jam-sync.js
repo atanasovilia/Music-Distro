@@ -6,6 +6,7 @@ export class JamSync {
     this.userId = null;
     this.userName = 'Guest';
     this.state = null;
+    this.consistencyToken = null;
     this._pollTimer = null;
     this._pollDelayMs = 1500;
     this._refreshPromise = null;
@@ -18,6 +19,7 @@ export class JamSync {
     this.roomId = roomId || 'global';
     this.userId = userId;
     this.userName = userName || 'Guest';
+    this.consistencyToken = null;
     this._destroyed = false;
     await this.refresh();
     this._startPolling();
@@ -57,10 +59,14 @@ export class JamSync {
 
     const requestRoomId = this.roomId;
     const params = new URLSearchParams({ roomId: requestRoomId });
-    const request = fetch(`${API_PATH}?${params}`, { cache: 'no-store' })
+    const request = fetch(`${API_PATH}?${params}`, {
+      cache: 'no-store',
+      headers: this.consistencyToken ? { 'x-jam-sync-token': this.consistencyToken } : {},
+    })
       .then(async res => {
         if (!res.ok) throw new Error('Could not load jam room state');
         const data = await res.json();
+        this._setConsistencyToken(res.headers.get('x-jam-sync-token'));
         if (this._destroyed || requestRoomId !== this.roomId) {
           return this.state;
         }
@@ -114,7 +120,10 @@ export class JamSync {
     const requestRoomId = this.roomId;
     const res = await fetch(API_PATH, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(this.consistencyToken ? { 'x-jam-sync-token': this.consistencyToken } : {}),
+      },
       body: JSON.stringify({
         roomId: requestRoomId,
         action,
@@ -126,6 +135,7 @@ export class JamSync {
 
     if (!res.ok) throw new Error('Jam action failed');
     const data = await res.json();
+    this._setConsistencyToken(res.headers.get('x-jam-sync-token'));
     if (!this._destroyed && requestRoomId === this.roomId) {
       this._setState(data.state);
     }
@@ -154,5 +164,11 @@ export class JamSync {
 
   async publishPlayback(playback) {
     return this._action('playback', { playback });
+  }
+
+  _setConsistencyToken(token) {
+    if (token) {
+      this.consistencyToken = token;
+    }
   }
 }
