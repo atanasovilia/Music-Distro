@@ -56,6 +56,7 @@ const DOM = {
   voteOptions: $('vote-options'),
   voteFooter: $('vote-footer'),
   roomChip: $('room-chip'),
+  btnShareRoom: $('btn-share-room'),
   btnJamHost: $('btn-jam-host'),
   jamSearchInput: $('jam-search-input'),
   btnJamSearch: $('btn-jam-search'),
@@ -116,6 +117,17 @@ async function initJamRoom() {
 }
 
 function bindJamControls() {
+  DOM.btnShareRoom.addEventListener('click', async () => {
+    const url = getRoomShareUrl();
+    const copied = await copyText(url);
+    if (copied) {
+      showToast('Room link copied');
+      return;
+    }
+    showToast('Copy failed. Link shown in prompt');
+    window.prompt('Copy room link:', url);
+  });
+
   DOM.btnJamHost.addEventListener('click', async () => {
     try {
       if (isJamHost) {
@@ -123,7 +135,8 @@ function bindJamControls() {
         showToast('Released host role');
       } else {
         await jam.becomeHost();
-        showToast('You are now the jam host');
+        const copied = await copyText(getRoomShareUrl());
+        showToast(copied ? 'You are host. Room link copied.' : 'You are now the jam host');
       }
     } catch {
       showToast('Could not change host role');
@@ -714,6 +727,38 @@ function getOrCreateJamUserId() {
 function getJamDisplayName() {
   const base = discord.currentUser?.global_name || discord.currentUser?.username || 'Guest';
   return String(base).slice(0, 20);
+}
+
+function getRoomShareUrl() {
+  const url = new URL(window.location.href);
+  url.searchParams.set('room', jamRoomId || 'global');
+  return url.toString();
+}
+
+async function copyText(value) {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(value);
+      return true;
+    }
+  } catch {
+    // Clipboard may be blocked in embedded contexts.
+  }
+
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = value;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    const ok = document.execCommand('copy');
+    document.body.removeChild(ta);
+    return !!ok;
+  } catch {
+    return false;
+  }
 }
 
 let _toastTimer;
