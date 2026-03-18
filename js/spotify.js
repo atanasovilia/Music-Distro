@@ -434,7 +434,7 @@ export class SpotifyManager {
     return data.items || [];
   }
 
-  async searchTracks(query, limit = 8) {
+  async searchTracks(query, limit = 12) {
     const token = await this.getValidToken();
     if (!token) return [];
     const params = new URLSearchParams({
@@ -450,5 +450,23 @@ export class SpotifyManager {
     if (!res.ok) return [];
     const data = await res.json();
     return data?.tracks?.items || [];
+  }
+
+  async searchMixes(query, limit = 12) {
+    const token = await this.getValidToken();
+    if (!token) return [];
+    const params = new URLSearchParams({
+      q: `${query} mix`,
+      type: 'playlist',
+      limit: String(limit),
+    });
+
+    const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data?.playlists?.items || [];
   }
 }

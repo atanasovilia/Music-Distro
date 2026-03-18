@@ -283,6 +283,37 @@ body {
   margin-bottom: 10px;
 }
 
+.jam-search-mode {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.jam-mode-btn {
+  border: 0;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  padding: 8px 9px;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.jam-mode-btn:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
+}
+
+.jam-mode-btn.active {
+  color: #000;
+  background: var(--accent);
+}
+
 .jam-search-input {
   flex: 1;
   border: 1px solid var(--glass-border);
@@ -873,6 +904,15 @@ body { transition: --accent var(--trans); }
 
   .jam-search {
     flex-direction: column;
+  }
+
+  .jam-search-mode {
+    width: 100%;
+  }
+
+  .jam-mode-btn {
+    flex: 1;
+    text-align: center;
   }
 
   .jam-search-btn {

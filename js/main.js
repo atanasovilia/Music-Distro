@@ -22,6 +22,7 @@ let jamUserName = 'Guest';
 let jamRoomId = 'global';
 let jamState = null;
 let isJamHost = false;
+let jamSearchMode = 'songs';
 let lastRemotePlaybackStamp = 0;
 let lastHostPublishAt = 0;
 let hostPublishTimer = null;
@@ -63,6 +64,8 @@ const DOM = {
   btnShareRoom: $('btn-share-room'),
   btnJamHost: $('btn-jam-host'),
   jamSearchInput: $('jam-search-input'),
+  btnSearchSongs: $('btn-search-songs'),
+  btnSearchMixes: $('btn-search-mixes'),
   btnJamSearch: $('btn-jam-search'),
   jamSearchResults: $('jam-search-results'),
   toast: $('toast'),
@@ -121,6 +124,11 @@ async function initJamRoom() {
 }
 
 function bindJamControls() {
+  setJamSearchMode('songs');
+
+  DOM.btnSearchSongs?.addEventListener('click', () => setJamSearchMode('songs'));
+  DOM.btnSearchMixes?.addEventListener('click', () => setJamSearchMode('mixes'));
+
   DOM.btnShareRoom.addEventListener('click', async () => {
     const url = getRoomShareUrl();
     const copied = await copyText(url);
@@ -178,32 +186,53 @@ async function runJamSearch() {
   DOM.btnJamSearch.textContent = '...';
 
   try {
-    const tracks = await spotify.searchTracks(query, 8);
-    renderJamSearchResults(tracks);
+    if (jamSearchMode === 'mixes') {
+      const mixes = await spotify.searchMixes(query, 12);
+      renderJamSearchResults(
+        mixes.map(m => ({
+          mode: 'mixes',
+          uri: m.uri,
+          name: m.name,
+          subtitle: m.owner?.display_name || 'Spotify',
+          art: m.images?.[0]?.url || null,
+        }))
+      );
+    } else {
+      const tracks = await spotify.searchTracks(query, 12);
+      renderJamSearchResults(
+        tracks.map(track => ({
+          mode: 'songs',
+          uri: track.uri,
+          name: track.name,
+          subtitle: (track.artists || []).map(a => a.name).join(', '),
+          art: track.album?.images?.[2]?.url || null,
+        }))
+      );
+    }
   } finally {
     DOM.btnJamSearch.disabled = false;
     DOM.btnJamSearch.textContent = 'Suggest';
   }
 }
 
-function renderJamSearchResults(tracks) {
+function renderJamSearchResults(items) {
   DOM.jamSearchResults.innerHTML = '';
 
-  if (!tracks.length) {
-    DOM.jamSearchResults.innerHTML = '<div class="vote-empty">No tracks found</div>';
+  if (!items.length) {
+    DOM.jamSearchResults.innerHTML = `<div class="vote-empty">No ${jamSearchMode} found</div>`;
     return;
   }
 
-  tracks.forEach(track => {
+  items.forEach(item => {
     const row = document.createElement('div');
     row.className = 'jam-result';
 
-    const img = track.album?.images?.[2]?.url;
+    const img = item.art;
     row.innerHTML = `
       <div class="jam-result-art">${img ? `<img src="${img}" alt="">` : '🎵'}</div>
       <div class="jam-result-meta">
-        <div class="jam-result-name">${escapeHtml(track.name)}</div>
-        <div class="jam-result-artist">${escapeHtml((track.artists || []).map(a => a.name).join(', '))}</div>
+        <div class="jam-result-name">${escapeHtml(item.name)}</div>
+        <div class="jam-result-artist">${escapeHtml(item.subtitle || '')}</div>
       </div>
       <button class="jam-result-btn" type="button">Add</button>
     `;
@@ -211,12 +240,12 @@ function renderJamSearchResults(tracks) {
     row.querySelector('.jam-result-btn').addEventListener('click', async () => {
       try {
         await jam.suggest({
-          uri: track.uri,
-          name: track.name,
-          artist: (track.artists || []).map(a => a.name).join(', '),
-          art: track.album?.images?.[2]?.url || null,
+          uri: item.uri,
+          name: item.name,
+          artist: item.subtitle || '',
+          art: item.art || null,
         });
-        showToast(`Added: ${truncate(track.name, 20)}`);
+        showToast(`Added: ${truncate(item.name, 20)}`);
       } catch {
         showToast('Could not add suggestion');
       }
@@ -303,7 +332,11 @@ async function hostPlaySuggestion(suggestion) {
   }
 
   try {
-    await spotify.play(null, [suggestion.uri]);
+    if (isPlaylistUri(suggestion.uri)) {
+      await spotify.play(suggestion.uri, null);
+    } else {
+      await spotify.play(null, [suggestion.uri]);
+    }
     await jam.publishPlayback({
       trackUri: suggestion.uri,
       trackName: suggestion.name,
@@ -377,7 +410,11 @@ async function applyRemotePlayback(pb) {
     const targetPos = getRemoteTargetPosition(pb);
 
     if (currentUri !== pb.trackUri) {
-      await spotify.play(null, [pb.trackUri], { positionMs: targetPos });
+      if (isPlaylistUri(pb.trackUri)) {
+        await spotify.play(pb.trackUri, null, { positionMs: targetPos });
+      } else {
+        await spotify.play(null, [pb.trackUri], { positionMs: targetPos });
+      }
       if (!pb.isPlaying) {
         await spotify.pause();
       }
@@ -780,6 +817,20 @@ function getOrCreateJamUserId() {
 function getJamDisplayName() {
   const base = discord.currentUser?.global_name || discord.currentUser?.username || 'Guest';
   return String(base).slice(0, 20);
+}
+
+function setJamSearchMode(mode) {
+  jamSearchMode = mode === 'mixes' ? 'mixes' : 'songs';
+  DOM.btnSearchSongs?.classList.toggle('active', jamSearchMode === 'songs');
+  DOM.btnSearchMixes?.classList.toggle('active', jamSearchMode === 'mixes');
+  DOM.jamSearchInput.placeholder = jamSearchMode === 'mixes'
+    ? 'Search mixes or playlists...'
+    : 'Search songs...';
+  DOM.jamSearchResults.innerHTML = '';
+}
+
+function isPlaylistUri(uri) {
+  return typeof uri === 'string' && uri.startsWith('spotify:playlist:');
 }
 
 function getRoomShareUrl() {
