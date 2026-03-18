@@ -133,7 +133,19 @@ export class JamSync {
       }),
     });
 
-    if (!res.ok) throw new Error('Jam action failed');
+    if (!res.ok) {
+      let message = 'Jam action failed';
+      try {
+        const body = await res.json();
+        if (body?.error) {
+          message = String(body.error);
+        }
+      } catch {
+        // Keep generic message if response body is not JSON.
+      }
+      throw new Error(message);
+    }
+
     const data = await res.json();
     this._setConsistencyToken(res.headers.get('x-jam-sync-token'));
     if (!this._destroyed && requestRoomId === this.roomId) {

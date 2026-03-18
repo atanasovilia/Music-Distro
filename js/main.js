@@ -13,7 +13,7 @@ const spotify = new SpotifyManager();
 const discord = new DiscordManager();
 const jam = new JamSync();
 
-let currentSceneId = 'beach';
+let currentSceneId = 'rain';
 let isDiscordActivity = false;
 let ambientJamStarted = false;
 
@@ -73,7 +73,7 @@ const DOM = {
 
 async function init() {
   buildSceneList();
-  switchScene('beach', false);
+  switchScene('rain', false);
   bindPlayerControls();
   bindVolumeControls();
   bindJamControls();
@@ -226,6 +226,7 @@ function renderJamSearchResults(items) {
   items.forEach(item => {
     const row = document.createElement('div');
     row.className = 'jam-result';
+    const alreadySuggested = (jamState?.suggestions || []).some(s => s.uri === item.uri);
 
     const img = item.art;
     row.innerHTML = `
@@ -234,10 +235,15 @@ function renderJamSearchResults(items) {
         <div class="jam-result-name">${escapeHtml(item.name)}</div>
         <div class="jam-result-artist">${escapeHtml(item.subtitle || '')}</div>
       </div>
-      <button class="jam-result-btn" type="button">Add</button>
+      <button class="jam-result-btn" type="button" ${alreadySuggested ? 'disabled' : ''}>${alreadySuggested ? 'Added' : 'Add'}</button>
     `;
 
     row.querySelector('.jam-result-btn').addEventListener('click', async () => {
+      if (alreadySuggested) {
+        showToast('Already in suggestions');
+        return;
+      }
+
       try {
         await jam.suggest({
           uri: item.uri,
@@ -246,8 +252,8 @@ function renderJamSearchResults(items) {
           art: item.art || null,
         });
         showToast(`Added: ${truncate(item.name, 20)}`);
-      } catch {
-        showToast('Could not add suggestion');
+      } catch (err) {
+        showToast(err?.message || 'Could not add suggestion');
       }
     });
 

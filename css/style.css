@@ -421,6 +421,13 @@ body {
   color: var(--accent);
 }
 
+.jam-result-btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+  border-color: var(--glass-border);
+  color: var(--text-muted);
+}
+
 .vote-option {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 14px; border-radius: 10px;

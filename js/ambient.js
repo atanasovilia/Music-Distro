@@ -114,7 +114,7 @@ export class AmbientEngine {
     switch (id) {
 
       case 'beach_waves': {
-        const fileNodes = this._loopAudioFile('soundreality-maldives-beach-381097.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFile('assets/sounds/beach/soundreality-maldives-beach-381097.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -128,7 +128,7 @@ export class AmbientEngine {
       }
 
       case 'beach_seagulls': {
-        const fileNodes = this._loopAudioFile('dammafra-seagulls-435999.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFile('assets/sounds/beach/dammafra-seagulls-435999.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -138,7 +138,7 @@ export class AmbientEngine {
       }
 
       case 'beach_breeze': {
-        const fileNodes = this._loopAudioFile('soul_serenity_sounds-distant-breeze-241047.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFile('assets/sounds/beach/soul_serenity_sounds-distant-breeze-241047.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -161,6 +161,11 @@ export class AmbientEngine {
       }
 
       case 'rain': {
+        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makeWhiteBuffer(2));
         const bp = this._filter('bandpass', 3200, 0.4);  // Lower Q for cleaner filtering
         const lp = this._filter('lowpass', 6000, 0.7);
@@ -272,6 +277,11 @@ export class AmbientEngine {
       }
 
       case 'thunder': {
+        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         this._scheduleThunder(gainNode, channel);
         break;
       }

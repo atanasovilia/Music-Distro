@@ -505,45 +505,64 @@ class MemoryJamStore {
 }
 
 class UpstashJamStore {
-  constructor(redis) {
+  constructor(redis, fallbackStore) {
     this.redis = redis;
+    this.fallbackStore = fallbackStore;
   }
 
   async getRoomState(roomId) {
-    const key = roomKey(roomId);
-    const raw = await this.redis.get(redisRoomKey(key));
-    const serialized = typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw) : null);
+    try {
+      const key = roomKey(roomId);
+      const raw = await this.redis.get(redisRoomKey(key));
+      const serialized = typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw) : null);
 
-    return {
-      driver: 'redis',
-      consistencyToken: null,
-      state: parseStoredState(serialized, key),
-    };
+      return {
+        driver: 'redis',
+        consistencyToken: null,
+        state: parseStoredState(serialized, key),
+      };
+    } catch (error) {
+      console.warn('[JamStore] Redis get failed, falling back to memory:', error?.message || error);
+      const fallbackResult = await this.fallbackStore.getRoomState(roomId);
+      return {
+        ...fallbackResult,
+        driver: 'memory-fallback',
+      };
+    }
   }
 
   async applyAction(roomId, action, payload, actor) {
-    const key = roomKey(roomId);
-    const result = await this.redis.eval(
-      APPLY_ACTION_SCRIPT,
-      [redisRoomKey(key)],
-      [
-        key,
-        String(action || ''),
-        JSON.stringify(payload || {}),
-        JSON.stringify({
-          id: actor?.id || null,
-          name: actor?.name || null,
-        }),
-        String(ROOM_TTL_SECONDS),
-      ]
-    );
-    const serialized = typeof result === 'string' ? result : (result ? JSON.stringify(result) : null);
+    try {
+      const key = roomKey(roomId);
+      const result = await this.redis.eval(
+        APPLY_ACTION_SCRIPT,
+        [redisRoomKey(key)],
+        [
+          key,
+          String(action || ''),
+          JSON.stringify(payload || {}),
+          JSON.stringify({
+            id: actor?.id || null,
+            name: actor?.name || null,
+          }),
+          String(ROOM_TTL_SECONDS),
+        ]
+      );
+      const serialized = typeof result === 'string' ? result : (result ? JSON.stringify(result) : null);
 
-    return {
-      driver: 'redis',
-      consistencyToken: null,
-      state: parseStoredState(serialized, key),
-    };
+      return {
+        driver: 'redis',
+        consistencyToken: null,
+        state: parseStoredState(serialized, key),
+      };
+    } catch (error) {
+      console.warn('[JamStore] Redis eval failed, falling back to memory:', error?.message || error);
+      const fallbackResult = await this.fallbackStore.applyAction(roomId, action, payload, actor);
+      return {
+        ...fallbackResult,
+        driver: 'memory-fallback',
+      };
+    }
   }
 }
 
@@ -552,12 +571,13 @@ let cachedStore = null;
 function createStore() {
   const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL || '';
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
+  const memoryFallback = new MemoryJamStore();
 
   if (url && token) {
-    return new UpstashJamStore(Redis.fromEnv());
+    return new UpstashJamStore(Redis.fromEnv(), memoryFallback);
   }
 
-  return new MemoryJamStore();
+  return memoryFallback;
 }
 
 function getJamStore() {
