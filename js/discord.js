@@ -6,6 +6,7 @@
 export class DiscordManager {
   constructor() {
     this.sdk = null;
+    this.sdkDetected = false;
     this.isInActivity = false;
     this.participants = [];
     this.currentUser = null;
@@ -22,10 +23,13 @@ export class DiscordManager {
   async init() {
     // Check if Discord SDK is available (only present inside Discord Activity)
     if (typeof window.DiscordSDK === 'undefined' && typeof window.Discord === 'undefined') {
+      this.sdkDetected = false;
       console.log('[Discord] SDK not found — running in standalone mode');
       this._standaloneFallback();
       return false;
     }
+
+    this.sdkDetected = true;
 
     try {
       // The SDK is injected as a global by the Discord client
@@ -167,5 +171,9 @@ export class DiscordManager {
 
   getParticipantCount() {
     return this.participants.length;
+  }
+
+  isEmbeddedClient() {
+    return this.sdkDetected;
   }
 }

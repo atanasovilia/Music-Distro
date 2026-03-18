@@ -2,6 +2,15 @@
 
 Minimal static build for Vercel hosting.
 
+## Jam Mode
+
+- Shared room state endpoint: api/jam/state.js
+- Room URL: add ?room=your-room-id to the app URL
+- Users can become host, suggest tracks, vote, and host can push playback sync
+- Spotify login is still required per user for Spotify playback controls
+
+Note: the current Jam state backend is in-memory for quick rollout. It works for lightweight testing, but it is not durable storage. For production-grade rooms, switch the API to persistent storage (Redis, Postgres, or Supabase).
+
 ## Project Structure
 
 - index.html

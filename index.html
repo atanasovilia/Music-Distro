@@ -71,10 +71,19 @@
     <div class="vote-card glass" id="vote-card">
       <div class="vote-header">
         <span class="vote-icon">🗳</span>
-        <span class="vote-label">VOTE NEXT TRACK</span>
+        <span class="vote-label" id="vote-label">JAM SUGGESTIONS</span>
       </div>
+      <div class="jam-toolbar">
+        <div class="room-chip" id="room-chip">Room: global</div>
+        <button class="jam-host-btn" id="btn-jam-host">Become Host</button>
+      </div>
+      <div class="jam-search">
+        <input id="jam-search-input" class="jam-search-input" type="text" placeholder="Search songs or mixes..." maxlength="120">
+        <button id="btn-jam-search" class="jam-search-btn">Suggest</button>
+      </div>
+      <div class="jam-search-results" id="jam-search-results"></div>
       <div class="vote-options" id="vote-options">
-        <div class="vote-empty">Connect Spotify to start voting</div>
+        <div class="vote-empty">Connect Spotify to search and suggest tracks.</div>
       </div>
       <div class="vote-footer" id="vote-footer"></div>
     </div>
