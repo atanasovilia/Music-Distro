@@ -640,3 +640,278 @@ body { transition: --accent var(--trans); }
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--glass-border); border-radius: 2px; }
+
+/* ─── Responsive: Tablet ───────────────────────────────────────────────────── */
+@media (max-width: 1200px) {
+  body {
+    grid-template-columns: 78px 1fr 190px;
+  }
+
+  .main-content {
+    padding: 24px 16px 18px;
+  }
+
+  .vote-card {
+    max-width: 440px;
+    padding: 14px 16px;
+  }
+
+  .player-bar {
+    gap: 14px;
+    padding: 0 14px;
+  }
+
+  .track-section {
+    width: 210px;
+  }
+
+  .mixer-panel {
+    padding: 12px 10px 10px;
+  }
+}
+
+/* ─── Responsive: Small Tablet ─────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  body {
+    grid-template-columns: 70px 1fr 166px;
+    grid-template-rows: 56px 1fr 96px;
+  }
+
+  .scene-name {
+    font-size: clamp(24px, 5vw, 34px);
+  }
+
+  .mixer-panel {
+    padding: 10px 8px;
+  }
+
+  .channel {
+    padding: 8px 9px;
+  }
+
+  .track-section {
+    width: 180px;
+  }
+
+  .vol-slider {
+    width: 64px;
+  }
+}
+
+/* ─── Responsive: Phone ────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  html, body {
+    height: auto;
+    min-height: 100%;
+    overflow: auto;
+  }
+
+  body {
+    grid-template-columns: 1fr;
+    grid-template-rows: 56px auto auto auto auto;
+    grid-template-areas:
+      "header"
+      "scenes"
+      "main"
+      "mixer"
+      "player";
+  }
+
+  .top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 200;
+    gap: 10px;
+    padding: 0 10px;
+  }
+
+  .logo-text {
+    font-size: 13px;
+  }
+
+  .participants-wrap {
+    gap: 6px;
+  }
+
+  .scene-panel {
+    border-right: 0;
+    border-bottom: 1px solid var(--glass-border);
+    padding: 8px;
+    flex-direction: row;
+    align-items: center;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+  }
+
+  .scene-list {
+    display: flex;
+    gap: 8px;
+    width: max-content;
+  }
+
+  .panel-label {
+    padding: 0;
+    min-width: 42px;
+  }
+
+  .scene-btn {
+    width: 70px;
+    min-width: 70px;
+    aspect-ratio: 1;
+  }
+
+  .main-content {
+    align-items: stretch;
+    padding: 16px 10px;
+    gap: 14px;
+  }
+
+  .scene-hero {
+    margin-bottom: 8px;
+  }
+
+  .scene-emoji {
+    font-size: 42px;
+  }
+
+  .scene-name {
+    font-size: 30px;
+  }
+
+  .vote-card {
+    max-width: none;
+    width: 100%;
+    padding: 12px;
+  }
+
+  .jam-toolbar {
+    flex-wrap: wrap;
+  }
+
+  .jam-host-btn {
+    margin-left: 0;
+  }
+
+  .mixer-panel {
+    border-left: 0;
+    border-top: 1px solid var(--glass-border);
+    border-bottom: 1px solid var(--glass-border);
+    border-radius: 0;
+    padding: 12px 10px;
+    gap: 10px;
+  }
+
+  .mixer-channels {
+    gap: 8px;
+  }
+
+  .player-bar {
+    position: sticky;
+    bottom: 0;
+    gap: 10px;
+    padding: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .track-section {
+    width: 100%;
+    order: 1;
+  }
+
+  .controls-section {
+    order: 2;
+  }
+
+  .progress-section {
+    order: 3;
+    width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .volume-section {
+    order: 4;
+    margin-left: auto;
+  }
+
+  .toast {
+    bottom: 86px;
+    width: calc(100% - 24px);
+    text-align: center;
+  }
+}
+
+/* ─── Responsive: Small Phone ──────────────────────────────────────────────── */
+@media (max-width: 560px) {
+  .participants-label {
+    display: none;
+  }
+
+  .participants {
+    transform: scale(0.9);
+    transform-origin: right center;
+  }
+
+  .btn-connect {
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+
+  .scene-btn {
+    width: 62px;
+    min-width: 62px;
+  }
+
+  .scene-btn .s-emoji {
+    font-size: 18px;
+  }
+
+  .scene-btn .s-label {
+    font-size: 6px;
+  }
+
+  .jam-search {
+    flex-direction: column;
+  }
+
+  .jam-search-btn {
+    width: 100%;
+  }
+
+  .vote-option {
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .vote-option .vo-art {
+    width: 30px;
+    height: 30px;
+  }
+
+  .vote-option .vo-name {
+    font-size: 12px;
+  }
+
+  .vote-option .vo-artist {
+    font-size: 10px;
+  }
+
+  .ctrl-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .ctrl-play {
+    width: 42px;
+    height: 42px;
+  }
+
+  .track-name {
+    font-size: 13px;
+  }
+
+  .track-artist {
+    font-size: 10px;
+  }
+}
