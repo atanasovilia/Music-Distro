@@ -6,7 +6,7 @@
 // !! REPLACE WITH YOUR OWN VALUES !!
 const CLIENT_ID     = '45b32a563bb846a3974bbe789d9cca0d';
 const APP_BASE = (window.__APP_BASE_URL__ || window.location.origin).replace(/\/$/, '');
-const REDIRECT_URI  = `${APP_BASE}/callback`;
+const REDIRECT_URI  = (window.__SPOTIFY_REDIRECT_URI__ || APP_BASE).replace(/\/$/, '');
 const SCOPES = [
   'streaming',
   'user-read-email',
@@ -72,6 +72,7 @@ export class SpotifyManager {
       scope:                  SCOPES,
     });
 
+    console.log('[Spotify] Authorize redirect_uri:', REDIRECT_URI);
     window.location.href = `https://accounts.spotify.com/authorize?${params}`;
   }
 
