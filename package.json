@@ -1,0 +1,27 @@
+{
+  "name": "music-distro",
+  "version": "1.0.0",
+  "description": "Minimal static build for Vercel hosting.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atanasovilia/Music-Distro.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/atanasovilia/Music-Distro/issues"
+  },
+  "homepage": "https://github.com/atanasovilia/Music-Distro#readme",
+  "dependencies": {
+    "@upstash/redis": "^1.37.0"
+  },
+  "devDependencies": {
+    "vercel": "^50.33.1"
+  }
+}

@@ -1,5 +1,6 @@
 const ROOM_TTL_SECONDS = 60 * 60 * 24 * 7;
 const ROOM_STORE = globalThis.__LOFI_JAM_ROOMS__ || new Map();
+const { Redis } = require('@upstash/redis');
 
 globalThis.__LOFI_JAM_ROOMS__ = ROOM_STORE;
 
@@ -504,73 +505,44 @@ class MemoryJamStore {
 }
 
 class UpstashJamStore {
-  constructor({ url, token }) {
-    this.url = url.replace(/\/$/, '');
-    this.token = token;
+  constructor(redis) {
+    this.redis = redis;
   }
 
-  async command(command, consistencyToken) {
-    const headers = {
-      Authorization: `Bearer ${this.token}`,
-      'Content-Type': 'application/json',
-    };
-
-    if (consistencyToken) {
-      headers['upstash-sync-token'] = consistencyToken;
-    }
-
-    const res = await fetch(this.url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify(command),
-    });
-
-    const data = await res.json().catch(() => null);
-    if (!res.ok) {
-      throw new Error(`Upstash request failed (${res.status})`);
-    }
-    if (!data || data.error) {
-      throw new Error(data?.error || 'Upstash command failed');
-    }
-
-    return {
-      result: data.result,
-      consistencyToken: res.headers.get('upstash-sync-token') || consistencyToken || null,
-    };
-  }
-
-  async getRoomState(roomId, consistencyToken) {
+  async getRoomState(roomId) {
     const key = roomKey(roomId);
-    const result = await this.command(['GET', redisRoomKey(key)], consistencyToken);
+    const raw = await this.redis.get(redisRoomKey(key));
+    const serialized = typeof raw === 'string' ? raw : (raw ? JSON.stringify(raw) : null);
 
     return {
       driver: 'redis',
-      consistencyToken: result.consistencyToken,
-      state: parseStoredState(result.result, key),
+      consistencyToken: null,
+      state: parseStoredState(serialized, key),
     };
   }
 
-  async applyAction(roomId, action, payload, actor, consistencyToken) {
+  async applyAction(roomId, action, payload, actor) {
     const key = roomKey(roomId);
-    const result = await this.command([
-      'EVAL',
+    const result = await this.redis.eval(
       APPLY_ACTION_SCRIPT,
-      1,
-      redisRoomKey(key),
-      key,
-      String(action || ''),
-      JSON.stringify(payload || {}),
-      JSON.stringify({
-        id: actor?.id || null,
-        name: actor?.name || null,
-      }),
-      String(ROOM_TTL_SECONDS),
-    ], consistencyToken);
+      [redisRoomKey(key)],
+      [
+        key,
+        String(action || ''),
+        JSON.stringify(payload || {}),
+        JSON.stringify({
+          id: actor?.id || null,
+          name: actor?.name || null,
+        }),
+        String(ROOM_TTL_SECONDS),
+      ]
+    );
+    const serialized = typeof result === 'string' ? result : (result ? JSON.stringify(result) : null);
 
     return {
       driver: 'redis',
-      consistencyToken: result.consistencyToken,
-      state: parseStoredState(result.result, key),
+      consistencyToken: null,
+      state: parseStoredState(serialized, key),
     };
   }
 }
@@ -582,7 +554,7 @@ function createStore() {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN || '';
 
   if (url && token) {
-    return new UpstashJamStore({ url, token });
+    return new UpstashJamStore(Redis.fromEnv());
   }
 
   return new MemoryJamStore();

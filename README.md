@@ -17,11 +17,39 @@ The Jam API now supports persistent storage through Upstash Redis on Vercel. If 
 - css/style.css
 - css/scenes.css
 - js/main.js
+- js/jam-sync.js
 - js/scenes.js
 - js/ambient.js
 - js/spotify.js
 - js/discord.js
+- api/jam/state.js
+- api/_lib/jam-store.js
+- package.json
+- package-lock.json
+- .gitignore
 - vercel.json
+
+## What Goes In Git
+
+Commit these files:
+
+- index.html
+- css/
+- js/
+- api/
+- package.json
+- package-lock.json
+- vercel.json
+- README.md
+- .gitignore
+
+Do not commit these:
+
+- node_modules/
+- .env
+- .env.*
+- .vercel/
+- logs and cache/build output files
 
 ## Deploy to Vercel
 
