@@ -253,6 +253,24 @@ body {
   transition: all var(--trans);
 }
 
+.jam-share-btn {
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  padding: 5px 11px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.jam-share-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
 .jam-host-btn:hover {
   border-color: var(--accent);
   color: var(--accent);
