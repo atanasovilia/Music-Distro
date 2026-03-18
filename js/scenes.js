@@ -9,9 +9,9 @@ export const SCENES = [
     tagline: 'Sun, salt & good vibes',
     emoji: '🌊',
     ambients: [
-      { id: 'waves',    label: 'Ocean Waves', icon: '🌊', defaultOn: true,  defaultVol: 0.65 },
-      { id: 'seagulls', label: 'Seagulls',    icon: '🐦', defaultOn: false, defaultVol: 0.35 },
-      { id: 'wind',     label: 'Sea Breeze',  icon: '💨', defaultOn: true,  defaultVol: 0.3  },
+      { id: 'beach_waves',    label: 'Ocean Waves', icon: '🌊', defaultOn: false, defaultVol: 0.1 },
+      { id: 'beach_seagulls', label: 'Seagulls',    icon: '🐦', defaultOn: false, defaultVol: 0.1 },
+      { id: 'beach_breeze',   label: 'Sea Breeze',  icon: '💨', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -20,9 +20,9 @@ export const SCENES = [
     tagline: 'Raindrops on the window',
     emoji: '🌧️',
     ambients: [
-      { id: 'rain',    label: 'Rain',        icon: '🌧️', defaultOn: true,  defaultVol: 0.7  },
-      { id: 'thunder', label: 'Thunder',     icon: '⛈️', defaultOn: false, defaultVol: 0.5  },
-      { id: 'indoor',  label: 'Indoors',     icon: '🏠', defaultOn: true,  defaultVol: 0.2  },
+      { id: 'rain',    label: 'Rain',        icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'thunder', label: 'Thunder',     icon: '⛈️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'indoor',  label: 'Indoors',     icon: '🏠', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -31,9 +31,9 @@ export const SCENES = [
     tagline: 'Neon lights, endless night',
     emoji: '🚗',
     ambients: [
-      { id: 'traffic', label: 'Traffic',     icon: '🚗', defaultOn: true,  defaultVol: 0.55 },
-      { id: 'rain',    label: 'City Rain',   icon: '🌧️', defaultOn: true,  defaultVol: 0.4  },
-      { id: 'city',    label: 'City Noise',  icon: '🏙️', defaultOn: false, defaultVol: 0.35 },
+      { id: 'traffic', label: 'Traffic',     icon: '🚗', defaultOn: false, defaultVol: 0.1 },
+      { id: 'rain',    label: 'City Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'city',    label: 'City Noise',  icon: '🏙️', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -42,9 +42,9 @@ export const SCENES = [
     tagline: 'Warmth in every cup',
     emoji: '☕',
     ambients: [
-      { id: 'cafe',   label: 'Chatter',     icon: '💬', defaultOn: true,  defaultVol: 0.45 },
-      { id: 'coffee', label: 'Machine',     icon: '☕', defaultOn: false, defaultVol: 0.4  },
-      { id: 'rain',   label: 'Outside',     icon: '🌧️', defaultOn: true,  defaultVol: 0.3  },
+      { id: 'cafe',   label: 'Chatter',     icon: '💬', defaultOn: false, defaultVol: 0.1 },
+      { id: 'coffee', label: 'Machine',     icon: '☕', defaultOn: false, defaultVol: 0.1 },
+      { id: 'rain',   label: 'Outside',     icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -53,9 +53,9 @@ export const SCENES = [
     tagline: 'Ancient trees, quiet paths',
     emoji: '🌲',
     ambients: [
-      { id: 'wind',   label: 'Wind',        icon: '🍃', defaultOn: true,  defaultVol: 0.4  },
-      { id: 'birds',  label: 'Birds',       icon: '🐦', defaultOn: true,  defaultVol: 0.5  },
-      { id: 'creek',  label: 'Creek',       icon: '💧', defaultOn: false, defaultVol: 0.45 },
+      { id: 'wind',   label: 'Wind',        icon: '🍃', defaultOn: false, defaultVol: 0.1 },
+      { id: 'birds',  label: 'Birds',       icon: '🐦', defaultOn: false, defaultVol: 0.1 },
+      { id: 'creek',  label: 'Creek',       icon: '💧', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -64,9 +64,9 @@ export const SCENES = [
     tagline: 'Stars, fire & stillness',
     emoji: '🌙',
     ambients: [
-      { id: 'crickets', label: 'Crickets',  icon: '🦗', defaultOn: true,  defaultVol: 0.5  },
-      { id: 'wind',     label: 'Night Wind',icon: '💨', defaultOn: true,  defaultVol: 0.25 },
-      { id: 'fire',     label: 'Campfire',  icon: '🔥', defaultOn: false, defaultVol: 0.55 },
+      { id: 'crickets', label: 'Crickets',  icon: '🦗', defaultOn: false, defaultVol: 0.1 },
+      { id: 'wind',     label: 'Night Wind',icon: '💨', defaultOn: false, defaultVol: 0.1 },
+      { id: 'fire',     label: 'Campfire',  icon: '🔥', defaultOn: false, defaultVol: 0.1 },
     ],
   },
 ];

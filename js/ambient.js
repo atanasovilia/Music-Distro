@@ -87,6 +87,22 @@ export class AmbientEngine {
     return [osc, gain];
   }
 
+  _loopAudioFile(filename, gainNode, channel) {
+    try {
+      const audio = new Audio(new URL(`../${filename}`, import.meta.url).href);
+      audio.loop = true;
+      audio.preload = 'auto';
+
+      const src = this.ctx.createMediaElementSource(audio);
+      src.connect(gainNode);
+
+      channel.mediaElement = audio;
+      return [src];
+    } catch {
+      return null;
+    }
+  }
+
   // ── Channel setup ─────────────────────────────────────────────
 
   _build(id, gainNode, channel) {
@@ -96,6 +112,44 @@ export class AmbientEngine {
     const addNodes = (...n) => nodes.push(...n);
 
     switch (id) {
+
+      case 'beach_waves': {
+        const fileNodes = this._loopAudioFile('soundreality-maldives-beach-381097.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        const src = this._loopNoise(this._makePinkBuffer(3));
+        const lp = this._filter('lowpass', 600, 0.5);
+        const [lfoOsc, lfoGain] = this._lfo(0.08, 300, lp.frequency);
+        src.connect(lp); lp.connect(gainNode);
+        addNodes(src, lp, lfoOsc, lfoGain);
+        break;
+      }
+
+      case 'beach_seagulls': {
+        const fileNodes = this._loopAudioFile('dammafra-seagulls-435999.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        this._scheduleChirps(gainNode, channel, 700, 1100, 2500, 7000);
+        break;
+      }
+
+      case 'beach_breeze': {
+        const fileNodes = this._loopAudioFile('soul_serenity_sounds-distant-breeze-241047.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        const src = this._loopNoise(this._makePinkBuffer(3));
+        const lp = this._filter('lowpass', 450, 0.6);
+        const [lfoOsc, lfoGain] = this._lfo(0.06, 150, lp.frequency);
+        src.connect(lp); lp.connect(gainNode);
+        addNodes(src, lp, lfoOsc, lfoGain);
+        break;
+      }
 
       case 'waves': {
         const src = this._loopNoise(this._makePinkBuffer(3));
@@ -332,6 +386,12 @@ export class AmbientEngine {
     const ch = this.channels[id];
     if (!ch) return;
     ch.isOn = on;
+    if (on && ch.mediaElement && ch.mediaElement.paused) {
+      ch.mediaElement.play().catch(() => {});
+    }
+    if (!on && ch.mediaElement && !ch.mediaElement.paused) {
+      ch.mediaElement.pause();
+    }
     // Smooth crossfade to prevent clicks
     ch.gainNode.gain.setTargetAtTime(
       on ? ch.volume * 0.75 : 0,
@@ -359,6 +419,12 @@ export class AmbientEngine {
       clearTimeout(ch._t1); clearTimeout(ch._t2); clearTimeout(ch._t3);
       ch.gainNode.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
       setTimeout(() => {
+        if (ch.mediaElement) {
+          try {
+            ch.mediaElement.pause();
+            ch.mediaElement.currentTime = 0;
+          } catch {}
+        }
         ch.nodes.forEach(n => { try { n.stop?.(); n.disconnect?.(); } catch {} });
         ch.gainNode.disconnect();
         delete this.channels[id];
