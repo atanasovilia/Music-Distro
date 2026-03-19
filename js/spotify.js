@@ -112,7 +112,7 @@ export class SpotifyManager {
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
     if (popupBlocked) {
       console.warn('[Spotify] Popup blocked; returning manual auth URL fallback');
-      return { mode: 'manual', authUrl, state };
+      return { mode: 'manual', authUrl, state, verifier };
     }
 
     console.log('[Spotify] Opening auth popup:', authUrl);
@@ -122,10 +122,10 @@ export class SpotifyManager {
     return { mode: 'popup', state };
   }
 
-  async handleCallback(code, state = null) {
-    let verifier = '';
+  async handleCallback(code, state = null, verifierOverride = '') {
+    let verifier = String(verifierOverride || '').trim();
 
-    if (state) {
+    if (!verifier && state) {
       const stateKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`;
       verifier = localStorage.getItem(stateKey) || '';
       localStorage.removeItem(stateKey);

@@ -37,6 +37,8 @@ const $ = id => document.getElementById(id);
 let localQueue = [];
 let queueAutoAdvanceLock = false;
 let pendingSpotifyManualAuthUrl = '';
+let pendingSpotifyManualState = '';
+let pendingSpotifyManualVerifier = '';
 
 const SCENE_VIDEO_MAP = {
   beach: 'assets/scenes/beach-animated.mp4',
@@ -1109,6 +1111,8 @@ if (!DOM.btnConnect) {
 
         if (loginResult?.mode === 'manual' && loginResult?.authUrl) {
           pendingSpotifyManualAuthUrl = loginResult.authUrl;
+          pendingSpotifyManualState = loginResult.state || '';
+          pendingSpotifyManualVerifier = loginResult.verifier || '';
           const copied = await copyText(pendingSpotifyManualAuthUrl);
           if (copied) {
             showToast('Spotify link copied. Open it in browser, approve, then click Connect again.');
@@ -1479,15 +1483,21 @@ async function runManualSpotifyAuthFlow() {
     return;
   }
 
+  const resolvedState = auth.state || pendingSpotifyManualState || null;
+
   try {
-    await spotify.handleCallback(auth.code, auth.state || null);
+    await spotify.handleCallback(auth.code, resolvedState, pendingSpotifyManualVerifier || '');
     pendingSpotifyManualAuthUrl = '';
+    pendingSpotifyManualState = '';
+    pendingSpotifyManualVerifier = '';
     showToast('Spotify connected');
     await connectSpotify();
   } catch (err) {
     const msg = String(err?.message || 'Spotify login failed');
     if (msg.toLowerCase().includes('invalid_grant') || msg.toLowerCase().includes('session expired')) {
       pendingSpotifyManualAuthUrl = '';
+      pendingSpotifyManualState = '';
+      pendingSpotifyManualVerifier = '';
       throw new Error('Spotify auth link/code is stale. Click Connect Spotify again to generate a fresh link.');
     }
     throw err;
