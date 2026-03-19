@@ -63,11 +63,15 @@ export class SpotifyManager {
 
   async login() {
     console.log('[Spotify] Login started');
-    // Open popup immediately from user gesture so browsers/embedded clients don't block it.
-    const popup = window.open('about:blank', 'spotify-auth', 'width=500,height=600');
+    // Open a new browsing context immediately from user gesture.
+    // _blank without window features is more likely to work in embedded clients.
+    let popup = window.open('about:blank', '_blank');
+    if (!popup) {
+      popup = window.open('about:blank', 'spotify-auth');
+    }
     if (!popup) {
       console.error('[Spotify] Popup failed to open - popups may be blocked');
-      throw new Error('Failed to open Spotify login popup. Allow popups and try again.');
+      throw new Error('Spotify login window was blocked by this client. Try opening the app in a normal browser for Spotify auth.');
     }
 
     const verifier = generateCodeVerifier();
