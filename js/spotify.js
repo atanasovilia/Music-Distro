@@ -24,6 +24,18 @@ const PKCE_VERIFIER_KEY = 'pkce_verifier';
 const PKCE_STATE_LATEST_KEY = 'pkce_state_latest';
 const PKCE_VERIFIER_BY_STATE_PREFIX = 'pkce_verifier:';
 
+function clearPkceStorage() {
+  const keysToRemove = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (key === PKCE_VERIFIER_KEY || key === PKCE_STATE_LATEST_KEY || key.startsWith(PKCE_VERIFIER_BY_STATE_PREFIX)) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+}
+
 // ── PKCE Helpers ─────────────────────────────────────────────────
 
 function generateCodeVerifier(length = 128) {
@@ -75,6 +87,9 @@ export class SpotifyManager {
     }
     const popupBlocked = !popup;
 
+    // Start a fresh OAuth attempt and remove stale PKCE artifacts.
+    clearPkceStorage();
+
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
     const state = generateCodeVerifier(24);
@@ -114,6 +129,9 @@ export class SpotifyManager {
       const stateKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`;
       verifier = localStorage.getItem(stateKey) || '';
       localStorage.removeItem(stateKey);
+      if (!verifier) {
+        throw new Error('OAuth session expired or mismatched. Start Spotify connect again.');
+      }
     }
 
     if (!verifier) {
@@ -153,6 +171,9 @@ export class SpotifyManager {
       const error = await res.json().catch(() => ({ error: 'Unknown error' }));
       console.error('❌ Token exchange failed:', error);
       const detail = error?.error_description || error?.error || 'Unknown error';
+      if (String(error?.error || '').toLowerCase() === 'invalid_grant') {
+        clearPkceStorage();
+      }
       throw new Error(`Token exchange failed: ${detail}`);
     }
     

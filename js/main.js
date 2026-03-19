@@ -1479,10 +1479,19 @@ async function runManualSpotifyAuthFlow() {
     return;
   }
 
-  await spotify.handleCallback(auth.code, auth.state || null);
-  pendingSpotifyManualAuthUrl = '';
-  showToast('Spotify connected');
-  await connectSpotify();
+  try {
+    await spotify.handleCallback(auth.code, auth.state || null);
+    pendingSpotifyManualAuthUrl = '';
+    showToast('Spotify connected');
+    await connectSpotify();
+  } catch (err) {
+    const msg = String(err?.message || 'Spotify login failed');
+    if (msg.toLowerCase().includes('invalid_grant') || msg.toLowerCase().includes('session expired')) {
+      pendingSpotifyManualAuthUrl = '';
+      throw new Error('Spotify auth link/code is stale. Click Connect Spotify again to generate a fresh link.');
+    }
+    throw err;
+  }
 }
 
 async function copyText(value) {
