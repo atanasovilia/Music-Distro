@@ -233,7 +233,7 @@ function loadLocalQueue() {
     const raw = localStorage.getItem(LOCAL_QUEUE_KEY);
     const parsed = JSON.parse(raw || '[]');
     localQueue = Array.isArray(parsed)
-      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0 && !isPlaylistUri(item.uri))
+      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0)
       : [];
   } catch {
     localQueue = [];
@@ -286,7 +286,13 @@ async function enqueueItemOrExpand(item, toTop = false) {
   } catch (err) {
     const msg = String(err?.message || 'Could not load mix tracks');
     if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
-      showToast('Spotify blocked this mix. Try another mix or reconnect Spotify.');
+      const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
+      if (added) {
+        showToast('Spotify blocked track expansion. Mix queued directly.');
+      } else {
+        showToast('Spotify blocked this mix. Try another mix or reconnect Spotify.');
+      }
+      return { added, skipped: added ? 0 : 1 };
     } else {
       showToast(msg);
     }
@@ -294,8 +300,13 @@ async function enqueueItemOrExpand(item, toTop = false) {
   }
 
   if (!tracks.length) {
+    const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
+    if (added) {
+      showToast('No track list available. Mix queued directly.');
+      return { added: 1, skipped: 0 };
+    }
     showToast('No playable tracks found in this mix');
-    return { added: 0, skipped: 0 };
+    return { added: 0, skipped: 1 };
   }
 
   const insert = toTop ? [...tracks].reverse() : tracks;
