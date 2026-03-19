@@ -287,14 +287,14 @@ async function enqueueItemOrExpand(item, toTop = false) {
     const msg = String(err?.message || 'Could not load mix tracks');
     const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
     if (added) {
-      showToast('Could not expand mix tracks. Mix queued directly.');
+      showToast('Mix queued directly.');
       return { added: 1, skipped: 0 };
     }
 
-    if (msg.toLowerCase().includes('already')) {
+    if (msg.toLowerCase().includes('already') || localQueue.some(q => q.uri === item.uri)) {
       showToast('Mix is already in queue');
     } else {
-      showToast('Could not expand mix tracks for this result.');
+      showToast('This mix cannot be expanded right now.');
     }
     return { added: 0, skipped: 1 };
   }
@@ -302,10 +302,10 @@ async function enqueueItemOrExpand(item, toTop = false) {
   if (!tracks.length) {
     const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
     if (added) {
-      showToast('No track list available. Mix queued directly.');
+      showToast('Mix queued directly.');
       return { added: 1, skipped: 0 };
     }
-    showToast('No playable tracks found in this mix');
+    showToast('Mix is already in queue');
     return { added: 0, skipped: 1 };
   }
 
