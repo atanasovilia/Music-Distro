@@ -513,25 +513,70 @@ async function playNextFromQueue(reason = 'manual') {
   const item = localQueue.shift();
   saveLocalQueue();
   renderQueue();
-  await playQueueItem(item);
+  const playingItem = await playQueueItem(item);
 
-  if (reason === 'manual') showToast(`Now playing: ${truncate(item.name, 22)}`);
+  if (reason === 'manual') showToast(`Now playing: ${truncate(playingItem?.name || item.name, 22)}`);
+}
+
+async function queueMixTracksForPlayback(mix) {
+  if (!mix?.uri || !isPlaylistUri(mix.uri) || !spotify.isLoggedIn()) return null;
+
+  let tracks = [];
+  try {
+    tracks = await spotify.getPlaylistTracks(mix, 250);
+  } catch (err) {
+    console.warn('[Queue] Mix preload failed:', err?.message || err);
+    return null;
+  }
+
+  if (!tracks.length) return null;
+
+  const firstTrack = toQueueEntry(tracks[0]);
+  const seen = new Set(localQueue.map(item => item?.uri).filter(Boolean));
+  const entries = [];
+
+  for (let i = 1; i < tracks.length; i += 1) {
+    const entry = toQueueEntry(tracks[i]);
+    if (!entry.uri || seen.has(entry.uri)) continue;
+    seen.add(entry.uri);
+    entries.push(entry);
+  }
+
+  if (entries.length) {
+    localQueue.unshift(...entries);
+    saveLocalQueue();
+    renderQueue();
+  }
+
+  return {
+    firstTrack,
+    added: entries.length,
+    total: tracks.length,
+  };
 }
 
 async function playQueueItem(item) {
-  if (!item?.uri) return;
+  if (!item?.uri) return item;
+
+  let playbackItem = item;
 
   if (isPlaylistUri(item.uri)) {
-    await spotify.play(item.uri, null);
+    const seededMix = await queueMixTracksForPlayback(item);
+    if (seededMix?.firstTrack?.uri) {
+      playbackItem = seededMix.firstTrack;
+      await spotify.play(null, [playbackItem.uri]);
+    } else {
+      await spotify.play(item.uri, null);
+    }
   } else {
     await spotify.play(null, [item.uri]);
   }
 
   if (isJamHost) {
     await jam.publishPlayback({
-      trackUri: item.uri,
-      trackName: item.name,
-      artist: item.artist,
+      trackUri: playbackItem.uri,
+      trackName: playbackItem.name,
+      artist: playbackItem.artist,
       isPlaying: true,
       positionMs: 0,
       durationMs: spotify.durationMs || 0,
@@ -539,6 +584,7 @@ async function playQueueItem(item) {
   }
 
   maybePublishHostPlayback(true);
+  return playbackItem;
 }
 
 function maybeAutoAdvanceQueue(pos, dur) {
