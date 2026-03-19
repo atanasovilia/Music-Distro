@@ -103,7 +103,7 @@ async function init() {
     if (event.data?.type === 'spotify-auth-code') {
       console.log('[Spotify] Received auth code from popup');
       try {
-        await spotify.handleCallback(event.data.code);
+        await spotify.handleCallback(event.data.code, event.data.state || null);
         showToast('Spotify connected');
         await connectSpotify();
       } catch (err) {
@@ -1128,6 +1128,7 @@ if (!DOM.btnConnect) {
 async function handleSpotifyCallback() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
+  const state = params.get('state');
   const error = params.get('error');
 
   if (error) {
@@ -1146,7 +1147,7 @@ async function handleSpotifyCallback() {
 
   // If we're in popup, send code back to opener (Discord Activity main window)
   if (window.opener) {
-    window.opener.postMessage({ type: 'spotify-auth-code', code }, '*');
+    window.opener.postMessage({ type: 'spotify-auth-code', code, state }, '*');
     window.close();
     return;
   }
@@ -1154,7 +1155,7 @@ async function handleSpotifyCallback() {
   window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 
   try {
-    await spotify.handleCallback(code);
+    await spotify.handleCallback(code, state);
     showToast('Spotify connected');
     await connectSpotify();
   } catch (err) {
@@ -1442,16 +1443,19 @@ function getRoomShareUrl() {
   return url.toString();
 }
 
-function extractSpotifyCodeFromInput(value) {
+function extractSpotifyAuthFromInput(value) {
   const input = String(value || '').trim();
-  if (!input) return '';
+  if (!input) return { code: '', state: '' };
 
   // Accept full callback URL or a raw code value.
   try {
     const parsed = new URL(input);
-    return parsed.searchParams.get('code') || '';
+    return {
+      code: parsed.searchParams.get('code') || '',
+      state: parsed.searchParams.get('state') || '',
+    };
   } catch {
-    return input;
+    return { code: input, state: '' };
   }
 }
 
@@ -1469,13 +1473,13 @@ async function runManualSpotifyAuthFlow() {
     return;
   }
 
-  const manualCode = extractSpotifyCodeFromInput(pasted);
-  if (!manualCode) {
+  const auth = extractSpotifyAuthFromInput(pasted);
+  if (!auth.code) {
     showToast('Could not find Spotify code. Paste callback URL or code.');
     return;
   }
 
-  await spotify.handleCallback(manualCode);
+  await spotify.handleCallback(auth.code, auth.state || null);
   pendingSpotifyManualAuthUrl = '';
   showToast('Spotify connected');
   await connectSpotify();

@@ -20,6 +20,10 @@ const SCOPES = [
   'playlist-read-collaborative',
 ].join(' ');
 
+const PKCE_VERIFIER_KEY = 'pkce_verifier';
+const PKCE_STATE_LATEST_KEY = 'pkce_state_latest';
+const PKCE_VERIFIER_BY_STATE_PREFIX = 'pkce_verifier:';
+
 // ── PKCE Helpers ─────────────────────────────────────────────────
 
 function generateCodeVerifier(length = 128) {
@@ -73,8 +77,12 @@ export class SpotifyManager {
 
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
-    // Use localStorage instead of sessionStorage (survives page refresh)
-    localStorage.setItem('pkce_verifier', verifier);
+    const state = generateCodeVerifier(24);
+    // Persist verifier by OAuth state so retries do not mismatch code_verifier.
+    localStorage.setItem(`${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`, verifier);
+    localStorage.setItem(PKCE_STATE_LATEST_KEY, state);
+    // Backward compatibility with previous single-key flow.
+    localStorage.setItem(PKCE_VERIFIER_KEY, verifier);
 
     const params = new URLSearchParams({
       client_id:              CLIENT_ID,
@@ -82,24 +90,47 @@ export class SpotifyManager {
       redirect_uri:           REDIRECT_URI,
       code_challenge_method:  'S256',
       code_challenge:         challenge,
+      state,
       scope:                  SCOPES,
     });
 
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
     if (popupBlocked) {
       console.warn('[Spotify] Popup blocked; returning manual auth URL fallback');
-      return { mode: 'manual', authUrl };
+      return { mode: 'manual', authUrl, state };
     }
 
     console.log('[Spotify] Opening auth popup:', authUrl);
     // Navigate popup after PKCE setup completes.
     popup.location.href = authUrl;
     console.log('[Spotify] Popup opened successfully');
-    return { mode: 'popup' };
+    return { mode: 'popup', state };
   }
 
-  async handleCallback(code) {
-    const verifier = localStorage.getItem('pkce_verifier');
+  async handleCallback(code, state = null) {
+    let verifier = '';
+
+    if (state) {
+      const stateKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`;
+      verifier = localStorage.getItem(stateKey) || '';
+      localStorage.removeItem(stateKey);
+    }
+
+    if (!verifier) {
+      const latestState = localStorage.getItem(PKCE_STATE_LATEST_KEY) || '';
+      if (latestState) {
+        const latestKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${latestState}`;
+        verifier = localStorage.getItem(latestKey) || '';
+        if (verifier) {
+          localStorage.removeItem(latestKey);
+        }
+      }
+    }
+
+    if (!verifier) {
+      verifier = localStorage.getItem(PKCE_VERIFIER_KEY) || '';
+    }
+
     if (!verifier) {
       console.error('❌ No PKCE verifier found in localStorage');
       throw new Error('No PKCE verifier found - try logging in again');
@@ -121,11 +152,14 @@ export class SpotifyManager {
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Unknown error' }));
       console.error('❌ Token exchange failed:', error);
-      throw new Error(`Token exchange failed: ${error.error || 'Unknown error'}`);
+      const detail = error?.error_description || error?.error || 'Unknown error';
+      throw new Error(`Token exchange failed: ${detail}`);
     }
     
     const data = await res.json();
     console.log('✓ Token exchange successful');
+    localStorage.removeItem(PKCE_VERIFIER_KEY);
+    localStorage.removeItem(PKCE_STATE_LATEST_KEY);
     this._saveTokens(data);
     return data.access_token;
   }
