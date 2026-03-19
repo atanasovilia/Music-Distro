@@ -31,6 +31,7 @@ const HOST_PLAYBACK_PUBLISH_MS = 1500;
 const REMOTE_SEEK_DRIFT_MS = 2000;
 const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
+const SPOTIFY_MANUAL_PENDING_KEY = 'spotify_manual_pending_v1';
 
 const $ = id => document.getElementById(id);
 
@@ -39,6 +40,54 @@ let queueAutoAdvanceLock = false;
 let pendingSpotifyManualAuthUrl = '';
 let pendingSpotifyManualState = '';
 let pendingSpotifyManualVerifier = '';
+
+function savePendingSpotifyManualAuth() {
+  try {
+    const payload = {
+      authUrl: pendingSpotifyManualAuthUrl || '',
+      state: pendingSpotifyManualState || '',
+      verifier: pendingSpotifyManualVerifier || '',
+      createdAt: Date.now(),
+    };
+    localStorage.setItem(SPOTIFY_MANUAL_PENDING_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore storage failures in restricted environments.
+  }
+}
+
+function clearPendingSpotifyManualAuth() {
+  pendingSpotifyManualAuthUrl = '';
+  pendingSpotifyManualState = '';
+  pendingSpotifyManualVerifier = '';
+  try {
+    localStorage.removeItem(SPOTIFY_MANUAL_PENDING_KEY);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function restorePendingSpotifyManualAuth() {
+  try {
+    const raw = localStorage.getItem(SPOTIFY_MANUAL_PENDING_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+
+    const createdAt = Number(parsed.createdAt || 0);
+    const ageMs = createdAt ? (Date.now() - createdAt) : 0;
+    // Spotify auth codes are short-lived; discard stale pending sessions.
+    if (ageMs > 15 * 60 * 1000) {
+      clearPendingSpotifyManualAuth();
+      return;
+    }
+
+    pendingSpotifyManualAuthUrl = String(parsed.authUrl || '');
+    pendingSpotifyManualState = String(parsed.state || '');
+    pendingSpotifyManualVerifier = String(parsed.verifier || '');
+  } catch {
+    clearPendingSpotifyManualAuth();
+  }
+}
 
 const SCENE_VIDEO_MAP = {
   beach: 'assets/scenes/beach-animated.mp4',
@@ -100,6 +149,8 @@ const DOM = {
 };
 
 async function init() {
+  restorePendingSpotifyManualAuth();
+
   // Listen for Spotify auth code from popup window (Discord Activity compatibility)
   window.addEventListener('message', async event => {
     if (event.data?.type === 'spotify-auth-code') {
@@ -1113,6 +1164,7 @@ if (!DOM.btnConnect) {
           pendingSpotifyManualAuthUrl = loginResult.authUrl;
           pendingSpotifyManualState = loginResult.state || '';
           pendingSpotifyManualVerifier = loginResult.verifier || '';
+          savePendingSpotifyManualAuth();
           const copied = await copyText(pendingSpotifyManualAuthUrl);
           if (copied) {
             showToast('Spotify link copied. Open it in browser, approve, then click Connect again.');
@@ -1487,17 +1539,13 @@ async function runManualSpotifyAuthFlow() {
 
   try {
     await spotify.handleCallback(auth.code, resolvedState, pendingSpotifyManualVerifier || '');
-    pendingSpotifyManualAuthUrl = '';
-    pendingSpotifyManualState = '';
-    pendingSpotifyManualVerifier = '';
+    clearPendingSpotifyManualAuth();
     showToast('Spotify connected');
     await connectSpotify();
   } catch (err) {
     const msg = String(err?.message || 'Spotify login failed');
     if (msg.toLowerCase().includes('invalid_grant') || msg.toLowerCase().includes('session expired')) {
-      pendingSpotifyManualAuthUrl = '';
-      pendingSpotifyManualState = '';
-      pendingSpotifyManualVerifier = '';
+      clearPendingSpotifyManualAuth();
       throw new Error('Spotify auth link/code is stale. Click Connect Spotify again to generate a fresh link.');
     }
     throw err;
