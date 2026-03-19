@@ -272,7 +272,16 @@ function loadLocalQueue() {
     const raw = localStorage.getItem(LOCAL_QUEUE_KEY);
     const parsed = JSON.parse(raw || '[]');
     localQueue = Array.isArray(parsed)
-      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0)
+      ? parsed
+        .filter(item => item && typeof item.uri === 'string' && item.uri.length > 0)
+        .map(item => ({
+          uri: item.uri,
+          name: item.name || 'Unknown title',
+          artist: item.artist || '',
+          art: item.art || null,
+          playlistId: typeof item.playlistId === 'string' && item.playlistId ? item.playlistId : null,
+          tracksHref: typeof item.tracksHref === 'string' && item.tracksHref ? item.tracksHref : null,
+        }))
       : [];
   } catch {
     localQueue = [];
@@ -289,6 +298,8 @@ function toQueueEntry(item) {
     name: item.name || 'Unknown title',
     artist: item.artist || '',
     art: item.art || null,
+    playlistId: item.playlistId || item.id || null,
+    tracksHref: item.tracksHref || item.tracks?.href || null,
   };
 }
 
@@ -325,7 +336,7 @@ async function enqueueItemOrExpand(item, toTop = false) {
 
   let tracks = [];
   try {
-    tracks = await spotify.getPlaylistTracks(item.uri, 250);
+    tracks = await spotify.getPlaylistTracks(item, 250);
   } catch (err) {
     const msg = String(err?.message || 'Could not load mix tracks');
     const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
@@ -398,7 +409,7 @@ async function expandQueueMixAt(index) {
 
   let tracks = [];
   try {
-    tracks = await spotify.getPlaylistTracks(mix.uri, 250);
+    tracks = await spotify.getPlaylistTracks(mix, 250);
   } catch (err) {
     const msg = String(err?.message || '').toLowerCase();
     if (msg.includes('permission') || msg.includes('scope') || msg.includes('forbidden') || msg.includes('blocked')) {
@@ -575,6 +586,8 @@ async function runJamSearch() {
           name: m.name,
           subtitle: m.owner?.display_name || 'Spotify',
           art: m.images?.[0]?.url || null,
+          playlistId: m.id || null,
+          tracksHref: m.tracks?.href || null,
         }))
       , query);
     } else {
@@ -658,6 +671,8 @@ function renderJamSearchResults(items, query = DOM.jamSearchInput.value.trim()) 
         name: item.name,
         artist: item.subtitle || '',
         art: item.art || null,
+        playlistId: item.playlistId || null,
+        tracksHref: item.tracksHref || null,
       });
       if (result.added > 0 && !isPlaylistUri(item.uri)) {
         showToast(`Queued: ${truncate(item.name, 20)}`);

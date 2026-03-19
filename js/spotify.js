@@ -42,12 +42,14 @@ export class SpotifyManager {
     this.player = null;
     this.deviceId = null;
     this.token = null;
+    this.userMarket = null;
     this.isPlaying = false;
     this.currentTrack = null;
     this.positionMs = 0;
     this.durationMs = 0;
     this._positionTimer = null;
     this._refreshPromise = null;  // Prevent concurrent token refreshes
+    this._marketPromise = null;
 
     // Callbacks
     this.onReady = () => {};
@@ -256,18 +258,19 @@ export class SpotifyManager {
     let offset = 0;
 
     while (items.length < hardLimit) {
+      const market = includeMarket ? await this.getUserMarket() : null;
       const params = new URLSearchParams({
         q: query,
         type,
         limit: String(Math.min(pageSize, hardLimit - items.length)),
         offset: String(offset),
       });
-      if (includeMarket) params.set('market', 'from_token');
+      if (market) params.set('market', market);
 
       const res = await this._safeSearch(
         `https://api.spotify.com/v1/search?${params}`,
         fallbackMessage,
-        () => {
+        market ? () => {
           const retryParams = new URLSearchParams({
             q: query,
             type,
@@ -275,7 +278,7 @@ export class SpotifyManager {
             offset: String(offset),
           });
           return `https://api.spotify.com/v1/search?${retryParams}`;
-        }
+        } : null
       );
 
       const data = await res.json();
@@ -323,6 +326,36 @@ export class SpotifyManager {
     }
   }
 
+  async getUserMarket() {
+    if (typeof this.userMarket === 'string') {
+      return this.userMarket || null;
+    }
+
+    if (this._marketPromise) {
+      return this._marketPromise;
+    }
+
+    this._marketPromise = (async () => {
+      try {
+        const res = await this._apiFetch('https://api.spotify.com/v1/me', {}, false);
+        if (!res.ok) return null;
+        const data = await res.json().catch(() => null);
+        const country = String(data?.country || '').trim().toUpperCase();
+        return /^[A-Z]{2}$/.test(country) ? country : null;
+      } catch {
+        return null;
+      }
+    })();
+
+    try {
+      const market = await this._marketPromise;
+      this.userMarket = market || '';
+      return market;
+    } finally {
+      this._marketPromise = null;
+    }
+  }
+
   isLoggedIn() {
     return !!localStorage.getItem('spotify_token');
   }
@@ -332,6 +365,8 @@ export class SpotifyManager {
     localStorage.removeItem('spotify_refresh');
     localStorage.removeItem('spotify_expiry');
     this.token = null;
+    this.userMarket = null;
+    this._marketPromise = null;
     this.player?.disconnect();
     this.player = null;
   }
@@ -606,12 +641,32 @@ export class SpotifyManager {
     return null;
   }
 
-  async getPlaylistTracks(playlistUri, maxTracks = 200) {
-    const playlistId = this._playlistIdFromUri(playlistUri);
-    if (!playlistId) return [];
+  _resolvePlaylistTarget(target) {
+    const source = target && typeof target === 'object' ? target : null;
+    const playlistId = source?.playlistId
+      ? String(source.playlistId).trim()
+      : source?.id
+        ? String(source.id).trim()
+        : this._playlistIdFromUri(source?.uri || target);
+
+    const tracksHrefRaw = source?.tracksHref || source?.tracks?.href || null;
+    const tracksHref = typeof tracksHrefRaw === 'string' && /^https:\/\/api\.spotify\.com\/v1\/playlists\/[A-Za-z0-9]+\/tracks/i.test(tracksHrefRaw)
+      ? tracksHrefRaw
+      : null;
+
+    return {
+      playlistId: playlistId || null,
+      tracksHref: tracksHref || (playlistId ? `https://api.spotify.com/v1/playlists/${playlistId}/tracks` : null),
+    };
+  }
+
+  async getPlaylistTracks(playlistTarget, maxTracks = 200) {
+    const lookup = this._resolvePlaylistTarget(playlistTarget);
+    if (!lookup.playlistId || !lookup.tracksHref) return [];
 
     const hardLimit = Math.max(1, Math.min(500, Number.parseInt(String(maxTracks), 10) || 200));
     const pageLimit = PLAYLIST_TRACKS_PAGE_LIMIT;
+    const market = await this.getUserMarket();
     let offset = 0;
     const tracks = [];
 
@@ -633,7 +688,7 @@ export class SpotifyManager {
     };
 
     const fetchPage = async query => {
-      const res = await this._apiFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?${query}`);
+      const res = await this._apiFetch(`${lookup.tracksHref}?${query}`);
       if (!res.ok) {
         if (res.status === 401) {
           this.logout();
@@ -664,8 +719,8 @@ export class SpotifyManager {
         limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
         offset: String(offset),
         fields: 'items(track(uri,name,artists(name),album(images))),next',
-        market: 'from_token',
       });
+      if (market) paramsStrict.set('market', market);
 
       const paramsNoMarket = new URLSearchParams({
         limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
