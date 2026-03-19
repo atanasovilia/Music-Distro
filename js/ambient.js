@@ -175,7 +175,7 @@ export class AmbientEngine {
       }
 
       case 'traffic_rain': {
-        const fileNodes = this._loopAudioFile('assets/sounds/traffic/dragon-studio-relaxing-rain-444802.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -207,6 +207,11 @@ export class AmbientEngine {
       }
 
       case 'traffic': {
+        const fileNodes = this._loopAudioFile('assets/sounds/traffic/traffics.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         // Low rumble with slow LFO simulating passing cars
         const src = this._loopNoise(this._makePinkBuffer(4));
         const lp = this._filter('lowpass', 350, 0.5);  // Smoother Q
@@ -301,7 +306,7 @@ export class AmbientEngine {
       }
 
       case 'traffic_thunder': {
-        const fileNodes = this._loopAudioFile('assets/sounds/traffic/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;

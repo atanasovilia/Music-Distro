@@ -155,10 +155,15 @@ export class SpotifyManager {
       Authorization: `Bearer ${token}`,
     };
 
-    let res = await fetch(url, {
-      ...options,
-      headers,
-    });
+    let res;
+    try {
+      res = await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch {
+      throw new Error('Network error while contacting Spotify. Check your connection and try again.');
+    }
 
     if (res.status === 401 && retryOn401) {
       const refreshed = await this._refreshToken();
@@ -166,16 +171,42 @@ export class SpotifyManager {
         throw new Error('Spotify session expired. Reconnect Spotify.');
       }
 
-      res = await fetch(url, {
-        ...options,
-        headers: {
-          ...(options.headers || {}),
-          Authorization: `Bearer ${refreshed}`,
-        },
-      });
+      try {
+        res = await fetch(url, {
+          ...options,
+          headers: {
+            ...(options.headers || {}),
+            Authorization: `Bearer ${refreshed}`,
+          },
+        });
+      } catch {
+        throw new Error('Network error while contacting Spotify. Check your connection and try again.');
+      }
     }
 
     return res;
+  }
+
+  async _readApiError(res, fallbackMessage) {
+    let details = '';
+
+    try {
+      const data = await res.clone().json();
+      details = data?.error?.message || data?.error_description || data?.message || '';
+    } catch {
+      try {
+        details = await res.clone().text();
+      } catch {
+        details = '';
+      }
+    }
+
+    const shortDetails = String(details || '').trim();
+    if (shortDetails) {
+      return `${fallbackMessage} (${res.status}): ${shortDetails}`;
+    }
+
+    return `${fallbackMessage} (${res.status})`;
   }
 
   async getValidToken() {
@@ -478,8 +509,14 @@ export class SpotifyManager {
     const res = await this._apiFetch(`https://api.spotify.com/v1/search?${params}`);
 
     if (!res.ok) {
-      const message = res.status === 429 ? 'Spotify rate limit hit. Try again in a moment.' : 'Spotify search failed.';
-      throw new Error(message);
+      if (res.status === 401) {
+        this.logout();
+        throw new Error('Spotify session expired. Reconnect Spotify.');
+      }
+      if (res.status === 429) {
+        throw new Error('Spotify rate limit hit. Try again in a moment.');
+      }
+      throw new Error(await this._readApiError(res, 'Spotify song search failed'));
     }
     const data = await res.json();
     const items = data?.tracks?.items || [];
@@ -494,7 +531,16 @@ export class SpotifyManager {
       limit: String(limit),
     });
     const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
-    if (!fallbackRes.ok) return [];
+    if (!fallbackRes.ok) {
+      if (fallbackRes.status === 401) {
+        this.logout();
+        throw new Error('Spotify session expired. Reconnect Spotify.');
+      }
+      if (fallbackRes.status === 429) {
+        throw new Error('Spotify rate limit hit. Try again in a moment.');
+      }
+      throw new Error(await this._readApiError(fallbackRes, 'Spotify song search failed'));
+    }
     const fallbackData = await fallbackRes.json();
     return fallbackData?.tracks?.items || [];
   }
@@ -510,8 +556,14 @@ export class SpotifyManager {
     const res = await this._apiFetch(`https://api.spotify.com/v1/search?${params}`);
 
     if (!res.ok) {
-      const message = res.status === 429 ? 'Spotify rate limit hit. Try again in a moment.' : 'Spotify mixes search failed.';
-      throw new Error(message);
+      if (res.status === 401) {
+        this.logout();
+        throw new Error('Spotify session expired. Reconnect Spotify.');
+      }
+      if (res.status === 429) {
+        throw new Error('Spotify rate limit hit. Try again in a moment.');
+      }
+      throw new Error(await this._readApiError(res, 'Spotify mixes search failed'));
     }
     const data = await res.json();
     const items = data?.playlists?.items || [];
@@ -526,7 +578,16 @@ export class SpotifyManager {
       limit: String(limit),
     });
     const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
-    if (!fallbackRes.ok) return [];
+    if (!fallbackRes.ok) {
+      if (fallbackRes.status === 401) {
+        this.logout();
+        throw new Error('Spotify session expired. Reconnect Spotify.');
+      }
+      if (fallbackRes.status === 429) {
+        throw new Error('Spotify rate limit hit. Try again in a moment.');
+      }
+      throw new Error(await this._readApiError(fallbackRes, 'Spotify mixes search failed'));
+    }
     const fallbackData = await fallbackRes.json();
     return fallbackData?.playlists?.items || [];
   }
