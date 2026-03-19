@@ -199,6 +199,23 @@ export class AmbientEngine {
         break;
       }
 
+      case 'swamp_rain': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3',
+          'assets/sounds/traffic/heavy-rain.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        const src = this._loopNoise(this._makeWhiteBuffer(2));
+        const bp = this._filter('bandpass', 2600, 0.4);
+        const lp = this._filter('lowpass', 5600, 0.7);
+        src.connect(bp); bp.connect(lp); lp.connect(gainNode);
+        addNodes(src, bp, lp);
+        break;
+      }
+
       case 'wind': {
         const src = this._loopNoise(this._makePinkBuffer(3));
         const lp = this._filter('lowpass', 450, 0.6);  // More subtle filtering
@@ -318,6 +335,11 @@ export class AmbientEngine {
         break;
       }
 
+      case 'swamp_frogs': {
+        this._scheduleFrogCroaks(gainNode, channel);
+        break;
+      }
+
       case 'thunder': {
         const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
         if (fileNodes) {
@@ -370,6 +392,51 @@ export class AmbientEngine {
       const interval = iMin + Math.random() * (iMax - iMin);
       channel._t1 = setTimeout(schedule, interval);
     };
+    schedule();
+  }
+
+  _scheduleFrogCroaks(gainNode, channel) {
+    const schedule = () => {
+      if (!channel.isOn) {
+        channel._frogTimer = setTimeout(schedule, 1200);
+        return;
+      }
+
+      const ctx = this.ctx;
+      const start = ctx.currentTime + 0.02;
+      const base = 95 + Math.random() * 45;
+      const pulses = Math.random() < 0.5 ? 2 : 3;
+
+      for (let i = 0; i < pulses; i++) {
+        const osc = ctx.createOscillator();
+        const filter = ctx.createBiquadFilter();
+        const env = ctx.createGain();
+        const pulseAt = start + i * 0.11;
+
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(base + Math.random() * 20, pulseAt);
+        osc.frequency.exponentialRampToValueAtTime(base * (0.65 + Math.random() * 0.1), pulseAt + 0.09);
+
+        filter.type = 'bandpass';
+        filter.frequency.value = 240;
+        filter.Q.value = 0.8;
+
+        env.gain.setValueAtTime(0.0001, pulseAt);
+        env.gain.linearRampToValueAtTime(0.12, pulseAt + 0.03);
+        env.gain.exponentialRampToValueAtTime(0.0001, pulseAt + 0.17);
+
+        osc.connect(filter);
+        filter.connect(env);
+        env.connect(gainNode);
+
+        osc.start(pulseAt);
+        osc.stop(pulseAt + 0.22);
+      }
+
+      const wait = 900 + Math.random() * 2500;
+      channel._frogTimer = setTimeout(schedule, wait);
+    };
+
     schedule();
   }
 
@@ -428,7 +495,7 @@ export class AmbientEngine {
       volume: defaultVol,
       isOn: false,
       nodes: [],
-      _t1: null, _t2: null, _t3: null,
+      _t1: null, _t2: null, _t3: null, _frogTimer: null,
     };
 
     this._build(id, gainNode, channel);
@@ -482,6 +549,7 @@ export class AmbientEngine {
       const ch = this.channels[id];
       if (!ch) return;
       clearTimeout(ch._t1); clearTimeout(ch._t2); clearTimeout(ch._t3);
+      clearTimeout(ch._frogTimer);
       ch.gainNode.gain.setTargetAtTime(0, this.ctx.currentTime, 0.05);
       setTimeout(() => {
         if (ch.mediaElement) {

@@ -235,7 +235,59 @@ export class SpotifyManager {
   _sanitizeLimit(limit, fallback = 12) {
     const parsed = Number.parseInt(String(limit), 10);
     if (!Number.isFinite(parsed)) return fallback;
-    return Math.min(50, Math.max(1, parsed));
+    return Math.min(200, Math.max(1, parsed));
+  }
+
+  async _searchPaged(query, type, targetCount, fallbackMessage, options = {}) {
+    const hardLimit = Math.min(200, Math.max(1, Number.parseInt(String(targetCount), 10) || 12));
+    const pageSize = 50;
+    const includeMarket = options.includeMarket !== false;
+    const seen = new Set();
+    const items = [];
+    let offset = 0;
+
+    while (items.length < hardLimit) {
+      const params = new URLSearchParams({
+        q: query,
+        type,
+        limit: String(Math.min(pageSize, hardLimit - items.length)),
+        offset: String(offset),
+      });
+      if (includeMarket) params.set('market', 'from_token');
+
+      const res = await this._safeSearch(
+        `https://api.spotify.com/v1/search?${params}`,
+        fallbackMessage,
+        () => {
+          const retryParams = new URLSearchParams({
+            q: query,
+            type,
+            limit: '20',
+            offset: String(offset),
+          });
+          return `https://api.spotify.com/v1/search?${retryParams}`;
+        }
+      );
+
+      const data = await res.json();
+      const bucket = type === 'playlist' ? data?.playlists : data?.tracks;
+      const batch = Array.isArray(bucket?.items) ? bucket.items : [];
+      if (!batch.length) break;
+
+      for (const item of batch) {
+        const key = item?.uri || item?.id;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        items.push(item);
+        if (items.length >= hardLimit) break;
+      }
+
+      if (!bucket?.next) break;
+      offset += batch.length;
+      if (batch.length < pageSize) break;
+    }
+
+    return items;
   }
 
   async getValidToken() {
@@ -640,103 +692,41 @@ export class SpotifyManager {
 
   async searchTracks(query, limit = 12) {
     const safeLimit = this._sanitizeLimit(limit, 12);
-    const params = new URLSearchParams({
-      q: query,
-      type: 'track',
-      limit: String(safeLimit),
-      market: 'from_token',
-    });
+    const primary = await this._searchPaged(query, 'track', safeLimit, 'Spotify song search failed', { includeMarket: true });
+    if (primary.length >= Math.min(safeLimit, 10)) return primary;
 
-    const res = await this._safeSearch(
-      `https://api.spotify.com/v1/search?${params}`,
-      'Spotify song search failed',
-      () => {
-        const retryParams = new URLSearchParams({
-          q: query,
-          type: 'track',
-          limit: '10',
-        });
-        return `https://api.spotify.com/v1/search?${retryParams}`;
-      }
-    );
+    const fallback = await this._searchPaged(query, 'track', safeLimit, 'Spotify song search failed', { includeMarket: false });
+    if (!fallback.length) return primary;
 
-    const data = await res.json();
-    const items = data?.tracks?.items || [];
-    if (items.length > 0) {
-      return items;
+    const merged = [...primary];
+    const seen = new Set(primary.map(item => item?.uri || item?.id).filter(Boolean));
+    for (const item of fallback) {
+      const key = item?.uri || item?.id;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+      if (merged.length >= safeLimit) break;
     }
-
-    // Fallback: retry without market filter to avoid false empty sets.
-    const fallbackParams = new URLSearchParams({
-      q: query,
-      type: 'track',
-      limit: String(safeLimit),
-    });
-    const fallbackRes = await this._safeSearch(
-      `https://api.spotify.com/v1/search?${fallbackParams}`,
-      'Spotify song search failed',
-      () => {
-        const retryParams = new URLSearchParams({
-          q: query,
-          type: 'track',
-          limit: '10',
-        });
-        return `https://api.spotify.com/v1/search?${retryParams}`;
-      }
-    );
-
-    const fallbackData = await fallbackRes.json();
-    return fallbackData?.tracks?.items || [];
+    return merged;
   }
 
   async searchMixes(query, limit = 12) {
     const safeLimit = this._sanitizeLimit(limit, 12);
-    const params = new URLSearchParams({
-      q: `${query} mix`,
-      type: 'playlist',
-      limit: String(safeLimit),
-      market: 'from_token',
-    });
+    const primary = await this._searchPaged(`${query} mix`, 'playlist', safeLimit, 'Spotify mixes search failed', { includeMarket: true });
+    if (primary.length >= Math.min(safeLimit, 10)) return primary;
 
-    const res = await this._safeSearch(
-      `https://api.spotify.com/v1/search?${params}`,
-      'Spotify mixes search failed',
-      () => {
-        const retryParams = new URLSearchParams({
-          q: `${query} mix`,
-          type: 'playlist',
-          limit: '10',
-        });
-        return `https://api.spotify.com/v1/search?${retryParams}`;
-      }
-    );
+    const fallback = await this._searchPaged(query, 'playlist', safeLimit, 'Spotify mixes search failed', { includeMarket: false });
+    if (!fallback.length) return primary;
 
-    const data = await res.json();
-    const items = data?.playlists?.items || [];
-    if (items.length > 0) {
-      return items;
+    const merged = [...primary];
+    const seen = new Set(primary.map(item => item?.uri || item?.id).filter(Boolean));
+    for (const item of fallback) {
+      const key = item?.uri || item?.id;
+      if (!key || seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+      if (merged.length >= safeLimit) break;
     }
-
-    // Fallback: broader playlist search without forcing "mix" suffix.
-    const fallbackParams = new URLSearchParams({
-      q: query,
-      type: 'playlist',
-      limit: String(safeLimit),
-    });
-    const fallbackRes = await this._safeSearch(
-      `https://api.spotify.com/v1/search?${fallbackParams}`,
-      'Spotify mixes search failed',
-      () => {
-        const retryParams = new URLSearchParams({
-          q: query,
-          type: 'playlist',
-          limit: '10',
-        });
-        return `https://api.spotify.com/v1/search?${retryParams}`;
-      }
-    );
-
-    const fallbackData = await fallbackRes.json();
-    return fallbackData?.playlists?.items || [];
+    return merged;
   }
 }

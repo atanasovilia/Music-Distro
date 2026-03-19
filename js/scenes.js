@@ -49,13 +49,13 @@ export const SCENES = [
   },
   {
     id: 'forest',
-    name: 'Deep Forest',
-    tagline: 'Ancient trees, quiet paths',
-    emoji: '🌲',
+    name: 'Moonlit Swamp',
+    tagline: 'Frogs and rain in the marsh',
+    emoji: '🐸',
     ambients: [
-      { id: 'wind',   label: 'Wind',        icon: '🍃', defaultOn: false, defaultVol: 0.1 },
-      { id: 'birds',  label: 'Birds',       icon: '🐦', defaultOn: false, defaultVol: 0.1 },
-      { id: 'creek',  label: 'Creek',       icon: '💧', defaultOn: false, defaultVol: 0.1 },
+      { id: 'swamp_frogs', label: 'Frogs',  icon: '🐸', defaultOn: false, defaultVol: 0.1 },
+      { id: 'swamp_rain',  label: 'Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'creek',       label: 'Water',  icon: '💧', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {

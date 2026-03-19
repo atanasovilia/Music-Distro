@@ -389,8 +389,13 @@ async function expandQueueMixAt(index) {
   let tracks = [];
   try {
     tracks = await spotify.getPlaylistTracks(mix.uri, 250);
-  } catch {
-    showToast('Could not expand this mix right now');
+  } catch (err) {
+    const msg = String(err?.message || '').toLowerCase();
+    if (msg.includes('permission') || msg.includes('scope') || msg.includes('forbidden') || msg.includes('blocked')) {
+      showToast('Spotify blocked expansion. Reconnect Spotify and try again.');
+    } else {
+      showToast('Could not expand this mix right now');
+    }
     return;
   }
 
@@ -551,7 +556,7 @@ async function runJamSearch() {
 
   try {
     if (jamSearchMode === 'mixes') {
-      const mixes = await spotify.searchMixes(query, 30);
+      const mixes = await spotify.searchMixes(query, 120);
       const validMixes = (mixes || []).filter(m => m && typeof m === 'object' && typeof m.uri === 'string' && m.uri.length > 0);
       renderJamSearchResults(
         validMixes.map(m => ({
@@ -563,7 +568,7 @@ async function runJamSearch() {
         }))
       , query);
     } else {
-      const tracks = await spotify.searchTracks(query, 30);
+      const tracks = await spotify.searchTracks(query, 120);
       const validTracks = (tracks || []).filter(track => track && typeof track === 'object' && typeof track.uri === 'string' && track.uri.length > 0);
       renderJamSearchResults(
         validTracks.map(track => ({
@@ -1254,7 +1259,11 @@ function setJamSearchMode(mode) {
 }
 
 function isPlaylistUri(uri) {
-  return typeof uri === 'string' && uri.startsWith('spotify:playlist:');
+  if (typeof uri !== 'string') return false;
+  const value = uri.trim();
+  return /^spotify:playlist:[A-Za-z0-9]+$/i.test(value)
+    || /^spotify:user:[^:]+:playlist:[A-Za-z0-9]+$/i.test(value)
+    || /^https?:\/\/open\.spotify\.com\/playlist\/[A-Za-z0-9]+/i.test(value);
 }
 
 function getRoomShareUrl() {
