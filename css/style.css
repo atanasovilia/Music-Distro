@@ -137,6 +137,33 @@ body.hud-minimal .player-bar {
   z-index: 200;
 }
 
+.hud-restore-dash {
+  position: fixed;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.16);
+  box-shadow: 0 0 10px rgba(0,0,0,0.35);
+  opacity: 0;
+  pointer-events: none;
+  z-index: 300;
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.hud-restore-dash:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+body.hud-minimal .hud-restore-dash {
+  opacity: 1;
+  pointer-events: auto;
+}
+
 .now-playing-mini {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; font-family: 'DM Mono', monospace;

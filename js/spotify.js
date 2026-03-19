@@ -531,8 +531,18 @@ export class SpotifyManager {
 
   _playlistIdFromUri(uri) {
     if (typeof uri !== 'string') return null;
-    const m = uri.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
-    return m ? m[1] : null;
+    const trimmed = uri.trim();
+
+    const spotifyUri = trimmed.match(/^spotify:playlist:([A-Za-z0-9]+)$/i);
+    if (spotifyUri) return spotifyUri[1];
+
+    const legacyUri = trimmed.match(/^spotify:user:[^:]+:playlist:([A-Za-z0-9]+)$/i);
+    if (legacyUri) return legacyUri[1];
+
+    const openUrl = trimmed.match(/^https?:\/\/open\.spotify\.com\/playlist\/([A-Za-z0-9]+)/i);
+    if (openUrl) return openUrl[1];
+
+    return null;
   }
 
   async getPlaylistTracks(playlistUri, maxTracks = 200) {
@@ -544,34 +554,75 @@ export class SpotifyManager {
     let offset = 0;
     const tracks = [];
 
+    const extractTracks = data => {
+      const items = Array.isArray(data?.items) ? data.items : [];
+      for (const row of items) {
+        const t = row?.track;
+        const uri = t?.uri || t?.linked_from?.uri || null;
+        if (!uri || typeof uri !== 'string' || !uri.startsWith('spotify:track:')) continue;
+        tracks.push({
+          uri,
+          name: t?.name || 'Unknown title',
+          artist: Array.isArray(t?.artists) ? t.artists.map(a => a?.name).filter(Boolean).join(', ') : '',
+          art: t?.album?.images?.[2]?.url || t?.album?.images?.[1]?.url || t?.album?.images?.[0]?.url || null,
+        });
+        if (tracks.length >= hardLimit) break;
+      }
+      return items.length;
+    };
+
+    const fetchPage = async query => {
+      const res = await this._apiFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?${query}`);
+      if (!res.ok) {
+        if (res.status === 401) {
+          this.logout();
+          throw new Error('Spotify session expired. Reconnect Spotify.');
+        }
+        if (res.status === 404) {
+          throw new Error('Playlist not found or not accessible');
+        }
+        if (res.status === 429) {
+          throw new Error('Spotify rate limit hit. Try again in a moment.');
+        }
+        throw new Error(await this._readApiError(res, 'Could not read playlist tracks'));
+      }
+      return await res.json();
+    };
+
     while (tracks.length < hardLimit) {
-      const params = new URLSearchParams({
+      const paramsStrict = new URLSearchParams({
         limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
         offset: String(offset),
         fields: 'items(track(uri,name,artists(name),album(images))),next',
         market: 'from_token',
       });
 
-      const res = await this._apiFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?${params}`);
-      if (!res.ok) break;
+      const paramsNoMarket = new URLSearchParams({
+        limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
+        offset: String(offset),
+        fields: 'items(track(uri,linked_from(uri),name,artists(name),album(images))),next',
+      });
 
-      const data = await res.json();
-      const items = Array.isArray(data?.items) ? data.items : [];
-      if (!items.length) break;
+      const paramsLoose = new URLSearchParams({
+        limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
+        offset: String(offset),
+      });
 
-      for (const row of items) {
-        const t = row?.track;
-        if (!t?.uri || typeof t.uri !== 'string' || !t.uri.startsWith('spotify:track:')) continue;
-        tracks.push({
-          uri: t.uri,
-          name: t.name || 'Unknown title',
-          artist: Array.isArray(t.artists) ? t.artists.map(a => a?.name).filter(Boolean).join(', ') : '',
-          art: t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || null,
-        });
-        if (tracks.length >= hardLimit) break;
+      let data;
+      try {
+        data = await fetchPage(paramsStrict.toString());
+      } catch {
+        try {
+          data = await fetchPage(paramsNoMarket.toString());
+        } catch {
+          data = await fetchPage(paramsLoose.toString());
+        }
       }
 
-      offset += items.length;
+      const count = extractTracks(data);
+      if (!count) break;
+
+      offset += count;
       if (!data?.next) break;
     }
 

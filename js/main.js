@@ -73,6 +73,7 @@ const DOM = {
   btnSearchMixes: $('btn-search-mixes'),
   btnJamSearch: $('btn-jam-search'),
   btnToggleHud: $('btn-toggle-hud'),
+  btnHudRestore: $('btn-hud-restore'),
   jamSearchResults: $('jam-search-results'),
   queueList: $('queue-list'),
   queueCount: $('queue-count'),
@@ -194,17 +195,37 @@ function bindQueueControls() {
 }
 
 function bindHudControls() {
-  const startMinimal = localStorage.getItem(HUD_MINIMAL_KEY) === '1';
-  DOM.body.classList.toggle('hud-minimal', startMinimal);
-  if (DOM.btnToggleHud) {
-    DOM.btnToggleHud.textContent = startMinimal ? 'Show HUD' : 'Hide HUD';
-    DOM.btnToggleHud.addEventListener('click', () => {
-      const next = !DOM.body.classList.contains('hud-minimal');
-      DOM.body.classList.toggle('hud-minimal', next);
-      localStorage.setItem(HUD_MINIMAL_KEY, next ? '1' : '0');
+  const setHudMinimal = next => {
+    DOM.body.classList.toggle('hud-minimal', next);
+    localStorage.setItem(HUD_MINIMAL_KEY, next ? '1' : '0');
+    if (DOM.btnToggleHud) {
       DOM.btnToggleHud.textContent = next ? 'Show HUD' : 'Hide HUD';
-    });
-  }
+      DOM.btnToggleHud.setAttribute('aria-label', next ? 'Show HUD' : 'Hide HUD');
+      DOM.btnToggleHud.title = next ? 'Show HUD' : 'Hide HUD';
+    }
+    if (DOM.btnHudRestore) {
+      DOM.btnHudRestore.setAttribute('aria-label', 'Show HUD');
+      DOM.btnHudRestore.title = 'Show HUD';
+    }
+  };
+
+  const startMinimal = localStorage.getItem(HUD_MINIMAL_KEY) === '1';
+  setHudMinimal(startMinimal);
+
+  DOM.btnToggleHud?.addEventListener('click', () => {
+    const next = !DOM.body.classList.contains('hud-minimal');
+    setHudMinimal(next);
+  });
+
+  DOM.btnHudRestore?.addEventListener('click', () => {
+    setHudMinimal(false);
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    if (!DOM.body.classList.contains('hud-minimal')) return;
+    setHudMinimal(false);
+  });
 }
 
 function loadLocalQueue() {
