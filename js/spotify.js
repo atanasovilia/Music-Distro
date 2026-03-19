@@ -91,15 +91,19 @@ export class SpotifyManager {
 
   // ── Auth ───────────────────────────────────────────────────────
 
-  async login() {
+  async login(options = {}) {
+    const forceManual = !!options.forceManual;
     console.log('[Spotify] Login started');
-    // Open a new browsing context immediately from user gesture.
-    // _blank without window features is more likely to work in embedded clients.
-    let popup = window.open('about:blank', '_blank');
-    if (!popup) {
-      popup = window.open('about:blank', 'spotify-auth');
+    let popup = null;
+    if (!forceManual) {
+      // Open a new browsing context immediately from user gesture.
+      // _blank without window features is more likely to work in embedded clients.
+      popup = window.open('about:blank', '_blank');
+      if (!popup) {
+        popup = window.open('about:blank', 'spotify-auth');
+      }
     }
-    const popupBlocked = !popup;
+    const popupBlocked = forceManual || !popup;
 
     // Start a fresh OAuth attempt and remove stale PKCE artifacts.
     clearPkceStorage();
@@ -126,7 +130,7 @@ export class SpotifyManager {
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
     if (popupBlocked) {
       console.warn('[Spotify] Popup blocked; returning manual auth URL fallback');
-      return { mode: 'manual', authUrl, state, verifier };
+      return { mode: 'manual', authUrl, state, verifier, forceManual };
     }
 
     console.log('[Spotify] Opening auth popup:', authUrl);

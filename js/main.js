@@ -1158,7 +1158,7 @@ if (!DOM.btnConnect) {
         }
 
         console.log('[UI] Connect button clicked, calling spotify.login()');
-        const loginResult = await spotify.login();
+        const loginResult = await spotify.login({ forceManual: isDiscordActivity });
 
         if (loginResult?.mode === 'manual' && loginResult?.authUrl) {
           pendingSpotifyManualAuthUrl = loginResult.authUrl;
