@@ -1109,7 +1109,13 @@ if (!DOM.btnConnect) {
 
         if (loginResult?.mode === 'manual' && loginResult?.authUrl) {
           pendingSpotifyManualAuthUrl = loginResult.authUrl;
-          await runManualSpotifyAuthFlow();
+          const copied = await copyText(pendingSpotifyManualAuthUrl);
+          if (copied) {
+            showToast('Spotify link copied. Open it in browser, approve, then click Connect again.');
+          } else {
+            window.prompt('Open this Spotify auth link in browser, approve, then click Connect again:', pendingSpotifyManualAuthUrl);
+            showToast('After approval, click Connect again and paste callback URL/code.');
+          }
         }
       } catch (err) {
         console.error('[UI] Spotify login failed:', err);
