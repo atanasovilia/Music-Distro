@@ -103,6 +103,14 @@ export class AmbientEngine {
     }
   }
 
+  _loopAudioFiles(filenames, gainNode, channel) {
+    for (const filename of filenames) {
+      const nodes = this._loopAudioFile(filename, gainNode, channel);
+      if (nodes) return nodes;
+    }
+    return null;
+  }
+
   // ── Channel setup ─────────────────────────────────────────────
 
   _build(id, gainNode, channel) {
@@ -175,7 +183,10 @@ export class AmbientEngine {
       }
 
       case 'traffic_rain': {
-        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/traffic/heavy-rain.mp3',
+          'assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3',
+        ], gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -207,7 +218,10 @@ export class AmbientEngine {
       }
 
       case 'traffic': {
-        const fileNodes = this._loopAudioFile('assets/sounds/traffic/traffics.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/traffic/traffic.mp3',
+          'assets/sounds/traffic/traffics.mp3',
+        ], gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
@@ -225,7 +239,16 @@ export class AmbientEngine {
         break;
       }
 
+      case 'traffic_birds':
       case 'city': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/traffic/city-birds.mp3',
+          'assets/sounds/beach/dammafra-seagulls-435999.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makePinkBuffer(3));
         const lp = this._filter('lowpass', 1200, 0.6);
         const hp = this._filter('highpass', 150, 0.7);
@@ -306,7 +329,10 @@ export class AmbientEngine {
       }
 
       case 'traffic_thunder': {
-        const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/traffic/heavy-thunder.mp3',
+          'assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3',
+        ], gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;

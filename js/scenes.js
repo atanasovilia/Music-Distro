@@ -31,9 +31,9 @@ export const SCENES = [
     emoji: '🚗',
     ambients: [
       { id: 'traffic', label: 'Traffic',     icon: '🚗', defaultOn: false, defaultVol: 0.1 },
-      { id: 'traffic_rain',    label: 'City Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
-      { id: 'traffic_thunder', label: 'Storm',       icon: '⚡', defaultOn: false, defaultVol: 0.1 },
-      { id: 'city',    label: 'City Noise',  icon: '🏙️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'traffic_rain',    label: 'Heavy Rain',  icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'traffic_thunder', label: 'Thunder',     icon: '⚡', defaultOn: false, defaultVol: 0.1 },
+      { id: 'traffic_birds',   label: 'City Birds',  icon: '🐦', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
