@@ -24,6 +24,20 @@ const PKCE_VERIFIER_KEY = 'pkce_verifier';
 const PKCE_STATE_LATEST_KEY = 'pkce_state_latest';
 const PKCE_VERIFIER_BY_STATE_PREFIX = 'pkce_verifier:';
 
+function buildOAuthState(verifier) {
+  const nonce = generateCodeVerifier(24);
+  return `v1.${nonce}.${verifier}`;
+}
+
+function extractVerifierFromState(state) {
+  const value = String(state || '');
+  if (!value.startsWith('v1.')) return '';
+  const parts = value.split('.');
+  if (parts.length < 3) return '';
+  const verifier = parts.slice(2).join('.').trim();
+  return verifier || '';
+}
+
 function clearPkceStorage() {
   const keysToRemove = [];
   for (let i = 0; i < localStorage.length; i += 1) {
@@ -92,7 +106,7 @@ export class SpotifyManager {
 
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
-    const state = generateCodeVerifier(24);
+    const state = buildOAuthState(verifier);
     // Persist verifier by OAuth state so retries do not mismatch code_verifier.
     localStorage.setItem(`${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`, verifier);
     localStorage.setItem(PKCE_STATE_LATEST_KEY, state);
@@ -124,6 +138,10 @@ export class SpotifyManager {
 
   async handleCallback(code, state = null, verifierOverride = '') {
     let verifier = String(verifierOverride || '').trim();
+
+    if (!verifier && state) {
+      verifier = extractVerifierFromState(state);
+    }
 
     if (!verifier && state) {
       const stateKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`;
