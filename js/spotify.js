@@ -62,6 +62,7 @@ export class SpotifyManager {
   // ── Auth ───────────────────────────────────────────────────────
 
   async login() {
+    console.log('[Spotify] Login started');
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
     // Use localStorage instead of sessionStorage (survives page refresh)
@@ -76,13 +77,16 @@ export class SpotifyManager {
       scope:                  SCOPES,
     });
 
-    console.log('[Spotify] Authorize redirect_uri:', REDIRECT_URI);
-    // Open in popup for Discord Activity compatibility (can't use window.location in iframe)
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+    console.log('[Spotify] Opening auth popup:', authUrl);
+    // Open in popup for Discord Activity compatibility (can't use window.location in iframe)
     const popup = window.open(authUrl, 'spotify-auth', 'width=500,height=600');
+    console.log('[Spotify] Popup result:', popup);
     if (!popup) {
+      console.error('[Spotify] Popup failed to open - popups may be blocked');
       throw new Error('Failed to open Spotify login popup. Allow popups and try again.');
     }
+    console.log('[Spotify] Popup opened successfully');
   }
 
   async handleCallback(code) {

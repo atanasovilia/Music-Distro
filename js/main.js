@@ -1084,19 +1084,29 @@ DOM.btnAllOff.addEventListener('click', () => {
   document.querySelectorAll('.toggle input').forEach(el => (el.checked = false));
 });
 
-DOM.btnConnect.addEventListener('click', async () => {
-  if (spotify.isLoggedIn()) {
-    spotify.logout();
-    syncHostPlaybackLoop();
-    DOM.btnConnect.textContent = 'Connect Spotify';
-    DOM.npMini.style.display = 'none';
-    DOM.btnConnect.style.display = 'flex';
-    resetPlayer();
-    showToast('Disconnected from Spotify');
-  } else {
-    await spotify.login();
-  }
-});
+if (!DOM.btnConnect) {
+  console.error('[UI] Connect button not found in DOM!');
+} else {
+  DOM.btnConnect.addEventListener('click', async () => {
+    if (spotify.isLoggedIn()) {
+      spotify.logout();
+      syncHostPlaybackLoop();
+      DOM.btnConnect.textContent = 'Connect Spotify';
+      DOM.npMini.style.display = 'none';
+      DOM.btnConnect.style.display = 'flex';
+      resetPlayer();
+      showToast('Disconnected from Spotify');
+    } else {
+      try {
+        console.log('[UI] Connect button clicked, calling spotify.login()');
+        await spotify.login();
+      } catch (err) {
+        console.error('[UI] Spotify login failed:', err);
+        showToast(`Spotify error: ${err?.message || 'Login failed'}`);
+      }
+    }
+  });
+}
 
 async function handleSpotifyCallback() {
   const params = new URLSearchParams(window.location.search);
