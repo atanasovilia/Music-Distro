@@ -97,6 +97,24 @@ const DOM = {
 };
 
 async function init() {
+  // Listen for Spotify auth code from popup window (Discord Activity compatibility)
+  window.addEventListener('message', async event => {
+    if (event.data?.type === 'spotify-auth-code') {
+      console.log('[Spotify] Received auth code from popup');
+      try {
+        await spotify.handleCallback(event.data.code);
+        showToast('Spotify connected');
+        await connectSpotify();
+      } catch (err) {
+        console.error('Spotify auth failed:', err);
+        showToast(`Spotify error: ${err.message}`);
+      }
+    } else if (event.data?.type === 'spotify-auth-error') {
+      console.error('Spotify auth error from popup:', event.data.error);
+      showToast(`Spotify auth error: ${event.data.error}`);
+    }
+  });
+
   buildSceneList();
   switchScene('rain', false);
   bindPlayerControls();
@@ -1087,11 +1105,24 @@ async function handleSpotifyCallback() {
 
   if (error) {
     console.error('Spotify auth error:', error, params.get('error_description'));
+    // If we're in popup, send error back to opener
+    if (window.opener) {
+      window.opener.postMessage({ type: 'spotify-auth-error', error }, '*');
+      window.close();
+      return;
+    }
     showToast(`Spotify auth error: ${error}`);
     return;
   }
 
   if (!code) return;
+
+  // If we're in popup, send code back to opener (Discord Activity main window)
+  if (window.opener) {
+    window.opener.postMessage({ type: 'spotify-auth-code', code }, '*');
+    window.close();
+    return;
+  }
 
   window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 

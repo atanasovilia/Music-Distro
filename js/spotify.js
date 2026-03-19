@@ -77,7 +77,12 @@ export class SpotifyManager {
     });
 
     console.log('[Spotify] Authorize redirect_uri:', REDIRECT_URI);
-    window.location.href = `https://accounts.spotify.com/authorize?${params}`;
+    // Open in popup for Discord Activity compatibility (can't use window.location in iframe)
+    const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+    const popup = window.open(authUrl, 'spotify-auth', 'width=500,height=600');
+    if (!popup) {
+      throw new Error('Failed to open Spotify login popup. Allow popups and try again.');
+    }
   }
 
   async handleCallback(code) {
