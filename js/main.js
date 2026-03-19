@@ -74,6 +74,11 @@ const DOM = {
   btnJamSearch: $('btn-jam-search'),
   btnToggleHud: $('btn-toggle-hud'),
   btnHudRestore: $('btn-hud-restore'),
+  searchModal: $('search-modal'),
+  searchModalBackdrop: $('search-modal-backdrop'),
+  searchModalTitle: $('search-modal-title'),
+  searchModalResults: $('search-modal-results'),
+  btnSearchModalClose: $('btn-search-modal-close'),
   jamSearchResults: $('jam-search-results'),
   queueList: $('queue-list'),
   queueCount: $('queue-count'),
@@ -89,6 +94,7 @@ async function init() {
   bindJamControls();
   bindQueueControls();
   bindHudControls();
+  bindSearchModalControls();
   handleSpotifyCallback();
   loadLocalQueue();
   renderQueue();
@@ -194,6 +200,25 @@ function bindQueueControls() {
   });
 }
 
+function bindSearchModalControls() {
+  DOM.btnSearchModalClose?.addEventListener('click', closeSearchModal);
+  DOM.searchModalBackdrop?.addEventListener('click', closeSearchModal);
+}
+
+function openSearchModal(query, count) {
+  if (!DOM.searchModal || !DOM.searchModalResults || !DOM.searchModalTitle) return;
+  DOM.searchModal.classList.add('open');
+  DOM.searchModal.setAttribute('aria-hidden', 'false');
+  const modeLabel = jamSearchMode === 'mixes' ? 'Mixes' : 'Songs';
+  DOM.searchModalTitle.textContent = `${modeLabel}: "${truncate(query, 38)}" (${count})`;
+}
+
+function closeSearchModal() {
+  if (!DOM.searchModal || !DOM.searchModalResults) return;
+  DOM.searchModal.classList.remove('open');
+  DOM.searchModal.setAttribute('aria-hidden', 'true');
+}
+
 function bindHudControls() {
   const setHudMinimal = next => {
     DOM.body.classList.toggle('hud-minimal', next);
@@ -222,6 +247,10 @@ function bindHudControls() {
   });
 
   window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && DOM.searchModal?.classList.contains('open')) {
+      closeSearchModal();
+      return;
+    }
     if (e.key !== 'Escape') return;
     if (!DOM.body.classList.contains('hud-minimal')) return;
     setHudMinimal(false);
@@ -244,6 +273,15 @@ function saveLocalQueue() {
   localStorage.setItem(LOCAL_QUEUE_KEY, JSON.stringify(localQueue));
 }
 
+function toQueueEntry(item) {
+  return {
+    uri: item.uri,
+    name: item.name || 'Unknown title',
+    artist: item.artist || '',
+    art: item.art || null,
+  };
+}
+
 function enqueueTrack(item, toTop = false, options = {}) {
   const silentDuplicate = !!options.silentDuplicate;
   if (!item?.uri) return false;
@@ -252,12 +290,7 @@ function enqueueTrack(item, toTop = false, options = {}) {
     return false;
   }
 
-  const entry = {
-    uri: item.uri,
-    name: item.name || 'Unknown title',
-    artist: item.artist || '',
-    art: item.art || null,
-  };
+  const entry = toQueueEntry(item);
 
   if (toTop) localQueue.unshift(entry);
   else localQueue.push(entry);
@@ -343,6 +376,50 @@ function moveQueueItem(index, direction) {
   renderQueue();
 }
 
+async function expandQueueMixAt(index) {
+  if (index < 0 || index >= localQueue.length) return;
+  const mix = localQueue[index];
+  if (!mix || !isPlaylistUri(mix.uri)) return;
+
+  if (!spotify.isLoggedIn()) {
+    showToast('Connect Spotify to expand this mix');
+    return;
+  }
+
+  let tracks = [];
+  try {
+    tracks = await spotify.getPlaylistTracks(mix.uri, 250);
+  } catch {
+    showToast('Could not expand this mix right now');
+    return;
+  }
+
+  if (!tracks.length) {
+    showToast('No tracks available to expand for this mix');
+    return;
+  }
+
+  const seen = new Set(localQueue.map((item, i) => (i === index ? null : item?.uri)).filter(Boolean));
+  const entries = [];
+
+  for (const track of tracks) {
+    const uri = track?.uri;
+    if (!uri || seen.has(uri)) continue;
+    seen.add(uri);
+    entries.push(toQueueEntry(track));
+  }
+
+  if (!entries.length) {
+    showToast('These mix songs are already in your queue');
+    return;
+  }
+
+  localQueue.splice(index, 1, ...entries);
+  saveLocalQueue();
+  renderQueue();
+  showToast(`Expanded mix into ${entries.length} song${entries.length === 1 ? '' : 's'}`);
+}
+
 function renderQueue() {
   if (!DOM.queueList || !DOM.queueCount) return;
 
@@ -355,15 +432,20 @@ function renderQueue() {
   }
 
   localQueue.forEach((item, index) => {
+    const isMix = isPlaylistUri(item.uri);
     const row = document.createElement('div');
     row.className = 'queue-item';
     row.innerHTML = `
       <div class="jam-result-art">${item.art ? `<img src="${item.art}" alt="">` : '🎵'}</div>
       <div class="jam-result-meta">
-        <div class="jam-result-name">${escapeHtml(item.name)}</div>
+        <div class="queue-name-row">
+          <div class="jam-result-name">${escapeHtml(item.name)}</div>
+          ${isMix ? '<span class="queue-kind">MIX</span>' : ''}
+        </div>
         <div class="jam-result-artist">${escapeHtml(item.artist || '')}</div>
       </div>
       <div class="queue-item-actions">
+        ${isMix ? '<button class="queue-btn q-expand" type="button">Expand</button>' : ''}
         <button class="queue-btn q-play" type="button">Play</button>
         <button class="queue-btn q-up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
         <button class="queue-btn q-down" type="button" ${index === localQueue.length - 1 ? 'disabled' : ''}>↓</button>
@@ -373,6 +455,9 @@ function renderQueue() {
 
     row.querySelector('.q-play')?.addEventListener('click', async () => {
       await playQueueItemAt(index);
+    });
+    row.querySelector('.q-expand')?.addEventListener('click', async () => {
+      await expandQueueMixAt(index);
     });
     row.querySelector('.q-up')?.addEventListener('click', () => moveQueueItem(index, -1));
     row.querySelector('.q-down')?.addEventListener('click', () => moveQueueItem(index, 1));
@@ -456,6 +541,8 @@ async function runJamSearch() {
   const query = DOM.jamSearchInput.value.trim();
   if (!query) {
     DOM.jamSearchResults.innerHTML = '';
+    DOM.searchModalResults && (DOM.searchModalResults.innerHTML = '');
+    closeSearchModal();
     return;
   }
 
@@ -464,7 +551,7 @@ async function runJamSearch() {
 
   try {
     if (jamSearchMode === 'mixes') {
-      const mixes = await spotify.searchMixes(query, 12);
+      const mixes = await spotify.searchMixes(query, 30);
       const validMixes = (mixes || []).filter(m => m && typeof m === 'object' && typeof m.uri === 'string' && m.uri.length > 0);
       renderJamSearchResults(
         validMixes.map(m => ({
@@ -474,9 +561,9 @@ async function runJamSearch() {
           subtitle: m.owner?.display_name || 'Spotify',
           art: m.images?.[0]?.url || null,
         }))
-      );
+      , query);
     } else {
-      const tracks = await spotify.searchTracks(query, 12);
+      const tracks = await spotify.searchTracks(query, 30);
       const validTracks = (tracks || []).filter(track => track && typeof track === 'object' && typeof track.uri === 'string' && track.uri.length > 0);
       renderJamSearchResults(
         validTracks.map(track => ({
@@ -486,7 +573,7 @@ async function runJamSearch() {
           subtitle: (track.artists || []).map(a => a.name).join(', '),
           art: track.album?.images?.[2]?.url || null,
         }))
-      );
+      , query);
     }
   } finally {
     DOM.btnJamSearch.disabled = false;
@@ -494,13 +581,19 @@ async function runJamSearch() {
   }
 }
 
-function renderJamSearchResults(items) {
+function renderJamSearchResults(items, query = DOM.jamSearchInput.value.trim()) {
   DOM.jamSearchResults.innerHTML = '';
+  if (DOM.searchModalResults) DOM.searchModalResults.innerHTML = '';
 
   if (!items.length) {
-    DOM.jamSearchResults.innerHTML = `<div class="vote-empty">No ${jamSearchMode} found</div>`;
+    const emptyHtml = `<div class="vote-empty">No ${jamSearchMode} found for "${escapeHtml(query || '')}"</div>`;
+    DOM.jamSearchResults.innerHTML = emptyHtml;
+    if (DOM.searchModalResults) DOM.searchModalResults.innerHTML = emptyHtml;
+    openSearchModal(query || 'Search', 0);
     return;
   }
+
+  openSearchModal(query || 'Search', items.length);
 
   items.forEach(item => {
     if (!item || typeof item.uri !== 'string' || !item.uri) return;
@@ -554,10 +647,10 @@ function renderJamSearchResults(items) {
       if (result.added > 0 && !isPlaylistUri(item.uri)) {
         showToast(`Queued: ${truncate(item.name, 20)}`);
       }
-      if (result.added > 0) renderJamSearchResults(items);
+      if (result.added > 0) renderJamSearchResults(items, query);
     });
 
-    DOM.jamSearchResults.appendChild(row);
+    DOM.searchModalResults?.appendChild(row);
   });
 }
 

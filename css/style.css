@@ -581,6 +581,24 @@ body.hud-minimal .hud-restore-dash {
   background: rgba(255,255,255,0.03);
 }
 
+.queue-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.queue-kind {
+  font-size: 9px;
+  line-height: 1;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 2px 6px;
+  background: var(--accent-dim);
+}
+
 .queue-item-actions {
   display: flex;
   align-items: center;
@@ -608,6 +626,89 @@ body.hud-minimal .hud-restore-dash {
   display: flex;
   align-items: center;
   gap: 6px;
+}
+
+.search-modal {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 260;
+  transition: opacity var(--trans);
+}
+
+.search-modal.open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.search-modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(5, 8, 14, 0.68);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.search-modal-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) scale(0.97);
+  width: min(760px, calc(100vw - 28px));
+  max-height: min(78vh, 760px);
+  border-radius: 14px;
+  border: 1px solid var(--glass-border);
+  background: rgba(16, 22, 34, 0.8);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform var(--trans);
+}
+
+.search-modal.open .search-modal-card {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.search-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.search-modal-title {
+  margin: 0;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  font-family: 'DM Mono', monospace;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.search-modal-close {
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.search-modal-close:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.search-modal-results {
+  padding: 12px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* ─── Mixer Panel (right) ───────────────────────────────────────────────────── */

@@ -172,6 +172,16 @@
 
   <!-- Notification Toast -->
   <div class="toast" id="toast"></div>
+  <div class="search-modal" id="search-modal" aria-hidden="true">
+    <div class="search-modal-backdrop" id="search-modal-backdrop"></div>
+    <div class="search-modal-card glass" role="dialog" aria-modal="true" aria-labelledby="search-modal-title">
+      <div class="search-modal-header">
+        <h2 class="search-modal-title" id="search-modal-title">Search Results</h2>
+        <button class="search-modal-close" id="btn-search-modal-close" type="button" aria-label="Close search results">✕</button>
+      </div>
+      <div class="search-modal-results" id="search-modal-results"></div>
+    </div>
+  </div>
   <button class="hud-restore-dash" id="btn-hud-restore" type="button" aria-label="Show HUD" title="Show HUD"></button>
 
   <!-- Spotify Web Playback SDK (loads async) -->
