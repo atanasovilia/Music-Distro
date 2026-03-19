@@ -63,6 +63,13 @@ export class SpotifyManager {
 
   async login() {
     console.log('[Spotify] Login started');
+    // Open popup immediately from user gesture so browsers/embedded clients don't block it.
+    const popup = window.open('about:blank', 'spotify-auth', 'width=500,height=600');
+    if (!popup) {
+      console.error('[Spotify] Popup failed to open - popups may be blocked');
+      throw new Error('Failed to open Spotify login popup. Allow popups and try again.');
+    }
+
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
     // Use localStorage instead of sessionStorage (survives page refresh)
@@ -79,13 +86,8 @@ export class SpotifyManager {
 
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
     console.log('[Spotify] Opening auth popup:', authUrl);
-    // Open in popup for Discord Activity compatibility (can't use window.location in iframe)
-    const popup = window.open(authUrl, 'spotify-auth', 'width=500,height=600');
-    console.log('[Spotify] Popup result:', popup);
-    if (!popup) {
-      console.error('[Spotify] Popup failed to open - popups may be blocked');
-      throw new Error('Failed to open Spotify login popup. Allow popups and try again.');
-    }
+    // Navigate popup after PKCE setup completes.
+    popup.location.href = authUrl;
     console.log('[Spotify] Popup opened successfully');
   }
 
