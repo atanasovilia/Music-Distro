@@ -639,14 +639,25 @@
 .scene-forest .scene-media-video {
   opacity: 1;
   filter: saturate(1.04) contrast(1.02);
+  object-position: center 60%;
+  transform: scale(1.16);
+  transform-origin: center;
 }
 
 .scene-forest .l1,
 .scene-forest .l2,
 .scene-forest .l3,
-.scene-forest .scene-particles,
-.scene-forest .scene-overlay {
+.scene-forest .scene-particles {
   opacity: 0;
+}
+
+.scene-forest .l1 {
+  opacity: 0.35;
+}
+
+.scene-forest .scene-overlay {
+  opacity: 1;
+  background: linear-gradient(to top, rgba(0,0,0,0.32) 0%, rgba(0,0,0,0.12) 45%, transparent 70%);
 }
 
 
