@@ -30,6 +30,7 @@ let hostPublishTimer = null;
 const HOST_PLAYBACK_PUBLISH_MS = 1500;
 const REMOTE_SEEK_DRIFT_MS = 2000;
 const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
+const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
 
 const $ = id => document.getElementById(id);
 
@@ -71,6 +72,7 @@ const DOM = {
   btnSearchSongs: $('btn-search-songs'),
   btnSearchMixes: $('btn-search-mixes'),
   btnJamSearch: $('btn-jam-search'),
+  btnToggleHud: $('btn-toggle-hud'),
   jamSearchResults: $('jam-search-results'),
   queueList: $('queue-list'),
   queueCount: $('queue-count'),
@@ -85,6 +87,7 @@ async function init() {
   bindVolumeControls();
   bindJamControls();
   bindQueueControls();
+  bindHudControls();
   handleSpotifyCallback();
   loadLocalQueue();
   renderQueue();
@@ -190,12 +193,26 @@ function bindQueueControls() {
   });
 }
 
+function bindHudControls() {
+  const startMinimal = localStorage.getItem(HUD_MINIMAL_KEY) === '1';
+  DOM.body.classList.toggle('hud-minimal', startMinimal);
+  if (DOM.btnToggleHud) {
+    DOM.btnToggleHud.textContent = startMinimal ? 'Show HUD' : 'Hide HUD';
+    DOM.btnToggleHud.addEventListener('click', () => {
+      const next = !DOM.body.classList.contains('hud-minimal');
+      DOM.body.classList.toggle('hud-minimal', next);
+      localStorage.setItem(HUD_MINIMAL_KEY, next ? '1' : '0');
+      DOM.btnToggleHud.textContent = next ? 'Show HUD' : 'Hide HUD';
+    });
+  }
+}
+
 function loadLocalQueue() {
   try {
     const raw = localStorage.getItem(LOCAL_QUEUE_KEY);
     const parsed = JSON.parse(raw || '[]');
     localQueue = Array.isArray(parsed)
-      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0)
+      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0 && !isPlaylistUri(item.uri))
       : [];
   } catch {
     localQueue = [];
@@ -206,10 +223,11 @@ function saveLocalQueue() {
   localStorage.setItem(LOCAL_QUEUE_KEY, JSON.stringify(localQueue));
 }
 
-function enqueueTrack(item, toTop = false) {
+function enqueueTrack(item, toTop = false, options = {}) {
+  const silentDuplicate = !!options.silentDuplicate;
   if (!item?.uri) return false;
   if (localQueue.some(q => q.uri === item.uri)) {
-    showToast('Already in queue');
+    if (!silentDuplicate) showToast('Already in queue');
     return false;
   }
 
@@ -226,6 +244,50 @@ function enqueueTrack(item, toTop = false) {
   saveLocalQueue();
   renderQueue();
   return true;
+}
+
+async function enqueueItemOrExpand(item, toTop = false) {
+  if (!item?.uri) return { added: 0, skipped: 0 };
+
+  if (!isPlaylistUri(item.uri)) {
+    const added = enqueueTrack(item, toTop) ? 1 : 0;
+    return { added, skipped: added ? 0 : 1 };
+  }
+
+  if (!spotify.isLoggedIn()) {
+    showToast('Connect Spotify to expand mix into tracks');
+    return { added: 0, skipped: 0 };
+  }
+
+  let tracks = [];
+  try {
+    tracks = await spotify.getPlaylistTracks(item.uri, 250);
+  } catch (err) {
+    showToast(err?.message || 'Could not load mix tracks');
+    return { added: 0, skipped: 0 };
+  }
+
+  if (!tracks.length) {
+    showToast('No playable tracks found in this mix');
+    return { added: 0, skipped: 0 };
+  }
+
+  const insert = toTop ? [...tracks].reverse() : tracks;
+  let added = 0;
+  let skipped = 0;
+
+  insert.forEach(track => {
+    if (enqueueTrack(track, toTop, { silentDuplicate: true })) added += 1;
+    else skipped += 1;
+  });
+
+  if (added > 0) {
+    showToast(`Queued ${added} track${added === 1 ? '' : 's'} from mix`);
+  } else {
+    showToast('All mix tracks are already in queue');
+  }
+
+  return { added, skipped };
 }
 
 function removeQueueItem(index) {
@@ -409,7 +471,9 @@ function renderJamSearchResults(items) {
     const row = document.createElement('div');
     row.className = 'jam-result';
     const alreadySuggested = (jamState?.suggestions || []).some(s => s.uri === item.uri);
-    const alreadyQueued = localQueue.some(q => q.uri === item.uri);
+    const alreadyQueued = item.mode === 'mixes'
+      ? false
+      : localQueue.some(q => q.uri === item.uri);
 
     const img = item.art;
     row.innerHTML = `
@@ -420,7 +484,7 @@ function renderJamSearchResults(items) {
       </div>
       <div class="jam-result-actions">
         <button class="jam-result-btn jam-add-btn" type="button" ${alreadySuggested ? 'disabled' : ''}>${alreadySuggested ? 'Added' : 'Add'}</button>
-        <button class="jam-result-btn jam-queue-btn" type="button" ${alreadyQueued ? 'disabled' : ''}>${alreadyQueued ? 'Queued' : 'Queue'}</button>
+        <button class="jam-result-btn jam-queue-btn" type="button" ${alreadyQueued ? 'disabled' : ''}>${alreadyQueued ? 'Queued' : (item.mode === 'mixes' ? 'Queue All' : 'Queue')}</button>
       </div>
     `;
 
@@ -443,17 +507,17 @@ function renderJamSearchResults(items) {
       }
     });
 
-    row.querySelector('.jam-queue-btn').addEventListener('click', () => {
-      const ok = enqueueTrack({
+    row.querySelector('.jam-queue-btn').addEventListener('click', async () => {
+      const result = await enqueueItemOrExpand({
         uri: item.uri,
         name: item.name,
         artist: item.subtitle || '',
         art: item.art || null,
       });
-      if (ok) {
+      if (result.added > 0 && !isPlaylistUri(item.uri)) {
         showToast(`Queued: ${truncate(item.name, 20)}`);
-        renderJamSearchResults(items);
       }
+      if (result.added > 0) renderJamSearchResults(items);
     });
 
     DOM.jamSearchResults.appendChild(row);
@@ -517,15 +581,17 @@ function renderSuggestionList(suggestions) {
 
     const queueBtn = div.querySelector('.jam-queue-btn');
     if (queueBtn) {
-      queueBtn.addEventListener('click', e => {
+      queueBtn.addEventListener('click', async e => {
         e.stopPropagation();
-        const ok = enqueueTrack({
+        const result = await enqueueItemOrExpand({
           uri: s.uri,
           name: s.name,
           artist: s.artist || '',
           art: s.art || null,
         });
-        if (ok) showToast(`Queued: ${truncate(s.name, 20)}`);
+        if (result.added > 0 && !isPlaylistUri(s.uri)) {
+          showToast(`Queued: ${truncate(s.name, 20)}`);
+        }
       });
     }
 

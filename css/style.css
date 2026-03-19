@@ -111,6 +111,32 @@ body {
   box-shadow: 0 0 18px var(--glow);
 }
 
+.btn-hud-toggle {
+  border-style: dashed;
+  border-width: 1px;
+  border-color: var(--glass-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+.btn-hud-toggle:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+body.hud-minimal .top-bar,
+body.hud-minimal .scene-panel,
+body.hud-minimal .main-content,
+body.hud-minimal .mixer-panel {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.hud-minimal .player-bar {
+  z-index: 200;
+}
+
 .now-playing-mini {
   display: flex; align-items: center; gap: 8px;
   font-size: 12px; font-family: 'DM Mono', monospace;

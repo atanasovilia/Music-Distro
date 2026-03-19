@@ -529,6 +529,55 @@ export class SpotifyManager {
     return data.items || [];
   }
 
+  _playlistIdFromUri(uri) {
+    if (typeof uri !== 'string') return null;
+    const m = uri.match(/^spotify:playlist:([A-Za-z0-9]+)$/);
+    return m ? m[1] : null;
+  }
+
+  async getPlaylistTracks(playlistUri, maxTracks = 200) {
+    const playlistId = this._playlistIdFromUri(playlistUri);
+    if (!playlistId) return [];
+
+    const hardLimit = Math.max(1, Math.min(500, Number.parseInt(String(maxTracks), 10) || 200));
+    const pageLimit = 100;
+    let offset = 0;
+    const tracks = [];
+
+    while (tracks.length < hardLimit) {
+      const params = new URLSearchParams({
+        limit: String(Math.min(pageLimit, hardLimit - tracks.length)),
+        offset: String(offset),
+        fields: 'items(track(uri,name,artists(name),album(images))),next',
+        market: 'from_token',
+      });
+
+      const res = await this._apiFetch(`https://api.spotify.com/v1/playlists/${playlistId}/tracks?${params}`);
+      if (!res.ok) break;
+
+      const data = await res.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      if (!items.length) break;
+
+      for (const row of items) {
+        const t = row?.track;
+        if (!t?.uri || typeof t.uri !== 'string' || !t.uri.startsWith('spotify:track:')) continue;
+        tracks.push({
+          uri: t.uri,
+          name: t.name || 'Unknown title',
+          artist: Array.isArray(t.artists) ? t.artists.map(a => a?.name).filter(Boolean).join(', ') : '',
+          art: t.album?.images?.[2]?.url || t.album?.images?.[0]?.url || null,
+        });
+        if (tracks.length >= hardLimit) break;
+      }
+
+      offset += items.length;
+      if (!data?.next) break;
+    }
+
+    return tracks;
+  }
+
   async searchTracks(query, limit = 12) {
     const safeLimit = this._sanitizeLimit(limit, 12);
     const params = new URLSearchParams({
