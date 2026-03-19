@@ -129,9 +129,6 @@ export class SpotifyManager {
       const stateKey = `${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`;
       verifier = localStorage.getItem(stateKey) || '';
       localStorage.removeItem(stateKey);
-      if (!verifier) {
-        throw new Error('OAuth session expired or mismatched. Start Spotify connect again.');
-      }
     }
 
     if (!verifier) {
@@ -151,7 +148,7 @@ export class SpotifyManager {
 
     if (!verifier) {
       console.error('❌ No PKCE verifier found in localStorage');
-      throw new Error('No PKCE verifier found - try logging in again');
+      throw new Error('OAuth session expired or mismatched. Start Spotify connect again.');
     }
 
     console.log('✓ Found PKCE verifier, exchanging code...');
