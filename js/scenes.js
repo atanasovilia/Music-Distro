@@ -43,8 +43,7 @@ export const SCENES = [
     emoji: '☕',
     ambients: [
       { id: 'cafe',   label: 'Chatter',     icon: '💬', defaultOn: false, defaultVol: 0.1 },
-      { id: 'coffee', label: 'Machine',     icon: '☕', defaultOn: false, defaultVol: 0.1 },
-      { id: 'rain',   label: 'Outside',     icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'rain',   label: 'Rainy Street',icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -53,9 +52,9 @@ export const SCENES = [
     tagline: 'Frogs and rain in the marsh',
     emoji: '🐸',
     ambients: [
-      { id: 'swamp_frogs', label: 'Frogs',  icon: '🐸', defaultOn: false, defaultVol: 0.1 },
+      { id: 'swamp_frogs', label: 'Frogs',  icon: '🐸', defaultOn: true, defaultVol: 0.14 },
       { id: 'swamp_rain',  label: 'Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
-      { id: 'creek',       label: 'Water',  icon: '💧', defaultOn: false, defaultVol: 0.1 },
+      { id: 'creek',       label: 'Water',  icon: '💧', defaultOn: true, defaultVol: 0.12 },
     ],
   },
   {

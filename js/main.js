@@ -39,7 +39,11 @@ let queueAutoAdvanceLock = false;
 
 const SCENE_VIDEO_MAP = {
   beach: 'assets/scenes/beach-animated.mp4',
+  rain: 'assets/scenes/rain-animated.mp4',
+  cafe: 'assets/scenes/cafe-animated.mp4',
   forest: 'assets/scenes/swamp-animated.mp4',
+  traffic: 'assets/scenes/city-rain-animated.mp4',
+  nightsky: 'assets/scenes/nightsky-animated.mp4',
 };
 
 const DOM = {

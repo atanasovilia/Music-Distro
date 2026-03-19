@@ -218,6 +218,13 @@ export class AmbientEngine {
       }
 
       case 'wind': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/nightsky/freesound_community-lonely-winter-breeze-36867.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makePinkBuffer(3));
         const lp = this._filter('lowpass', 450, 0.6);  // More subtle filtering
         const [lfoOsc, lfoGain] = this._lfo(0.06, 150, lp.frequency);  // Reduced LFO
@@ -276,6 +283,13 @@ export class AmbientEngine {
       }
 
       case 'cafe': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/cafe/freesound_community-muffled-chatter-23025.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makePinkBuffer(3));
         const lp = this._filter('lowpass', 1800, 0.6);  // Smoother
         const hp = this._filter('highpass', 250, 0.7);
@@ -302,6 +316,13 @@ export class AmbientEngine {
       }
 
       case 'fire': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/nightsky/soundsforyou-campfire-crackling-fireplace-sound-119594.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makePinkBuffer(2));
         const lp = this._filter('lowpass', 700, 0.4);  // Smoother
         const hp = this._filter('highpass', 80, 0.7);
@@ -312,6 +333,13 @@ export class AmbientEngine {
       }
 
       case 'crickets': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/nightsky/u_s8g68hg8n6-cricket-on-a-summer-night-_-cricket-sound-341501.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const makeChirper = (freq, detune) => {
           const osc = ctx.createOscillator();
           osc.type = 'sine'; osc.frequency.value = freq;
