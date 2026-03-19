@@ -188,8 +188,9 @@ async function runJamSearch() {
   try {
     if (jamSearchMode === 'mixes') {
       const mixes = await spotify.searchMixes(query, 12);
+      const validMixes = (mixes || []).filter(m => m && typeof m === 'object' && typeof m.uri === 'string' && m.uri.length > 0);
       renderJamSearchResults(
-        mixes.map(m => ({
+        validMixes.map(m => ({
           mode: 'mixes',
           uri: m.uri,
           name: m.name,
@@ -199,8 +200,9 @@ async function runJamSearch() {
       );
     } else {
       const tracks = await spotify.searchTracks(query, 12);
+      const validTracks = (tracks || []).filter(track => track && typeof track === 'object' && typeof track.uri === 'string' && track.uri.length > 0);
       renderJamSearchResults(
-        tracks.map(track => ({
+        validTracks.map(track => ({
           mode: 'songs',
           uri: track.uri,
           name: track.name,
@@ -224,6 +226,8 @@ function renderJamSearchResults(items) {
   }
 
   items.forEach(item => {
+    if (!item || typeof item.uri !== 'string' || !item.uri) return;
+
     const row = document.createElement('div');
     row.className = 'jam-result';
     const alreadySuggested = (jamState?.suggestions || []).some(s => s.uri === item.uri);
