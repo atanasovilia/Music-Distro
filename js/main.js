@@ -1099,7 +1099,29 @@ if (!DOM.btnConnect) {
     } else {
       try {
         console.log('[UI] Connect button clicked, calling spotify.login()');
-        await spotify.login();
+        const loginResult = await spotify.login();
+
+        if (loginResult?.mode === 'manual' && loginResult?.authUrl) {
+          const copied = await copyText(loginResult.authUrl);
+          const promptMessage = copied
+            ? 'Discord blocked the Spotify popup. The auth link was copied. Open it in a normal browser, approve access, then paste the final callback URL or just the code here.'
+            : 'Discord blocked the Spotify popup. Open this Spotify auth link in a normal browser, approve access, then paste the final callback URL or just the code here:';
+          const pasted = window.prompt(promptMessage, copied ? '' : loginResult.authUrl);
+          if (!pasted) {
+            showToast('Spotify auth canceled');
+            return;
+          }
+
+          const manualCode = extractSpotifyCodeFromInput(pasted);
+          if (!manualCode) {
+            showToast('Could not find Spotify code in your input');
+            return;
+          }
+
+          await spotify.handleCallback(manualCode);
+          showToast('Spotify connected');
+          await connectSpotify();
+        }
       } catch (err) {
         console.error('[UI] Spotify login failed:', err);
         showToast(`Spotify error: ${err?.message || 'Login failed'}`);
@@ -1408,6 +1430,19 @@ function getRoomShareUrl() {
   const url = new URL(window.location.href);
   url.searchParams.set('room', jamRoomId || 'global');
   return url.toString();
+}
+
+function extractSpotifyCodeFromInput(value) {
+  const input = String(value || '').trim();
+  if (!input) return '';
+
+  // Accept full callback URL or a raw code value.
+  try {
+    const parsed = new URL(input);
+    return parsed.searchParams.get('code') || '';
+  } catch {
+    return input;
+  }
 }
 
 async function copyText(value) {

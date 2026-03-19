@@ -69,10 +69,7 @@ export class SpotifyManager {
     if (!popup) {
       popup = window.open('about:blank', 'spotify-auth');
     }
-    if (!popup) {
-      console.error('[Spotify] Popup failed to open - popups may be blocked');
-      throw new Error('Spotify login window was blocked by this client. Try opening the app in a normal browser for Spotify auth.');
-    }
+    const popupBlocked = !popup;
 
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
@@ -89,10 +86,16 @@ export class SpotifyManager {
     });
 
     const authUrl = `https://accounts.spotify.com/authorize?${params}`;
+    if (popupBlocked) {
+      console.warn('[Spotify] Popup blocked; returning manual auth URL fallback');
+      return { mode: 'manual', authUrl };
+    }
+
     console.log('[Spotify] Opening auth popup:', authUrl);
     // Navigate popup after PKCE setup completes.
     popup.location.href = authUrl;
     console.log('[Spotify] Popup opened successfully');
+    return { mode: 'popup' };
   }
 
   async handleCallback(code) {
