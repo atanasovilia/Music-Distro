@@ -10,15 +10,15 @@
 }
 .scene-layer { position: absolute; inset: 0; }
 .scene-particles { position: absolute; inset: 0; overflow: hidden; }
-.scene-media {
+.scene-media-video {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   z-index: 1;
   opacity: 0;
   pointer-events: none;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-  background-size: cover;
   transition: opacity 300ms ease;
 }
 .scene-overlay {
@@ -131,224 +131,19 @@
    🌊  BEACH NIGHT  (matches the Discord lo-fi screenshot)
 ════════════════════════════════════════════════════════════ */
 
-.scene-beach .scene-media {
-  opacity: 0.22;
-  background-image: url('../assets/scenes/beach-animated.gif');
-  filter: saturate(1.05) contrast(1.03);
+.scene-beach .scene-media-video {
+  opacity: 1;
+  filter: saturate(1.04) contrast(1.02);
 }
 
-/* L1: Deep illustrated sky — dark navy to rich indigo */
-.scene-beach .l1 {
-  background: linear-gradient(
-    185deg,
-    #020514 0%,
-    #060e2a 18%,
-    #0c1840 35%,
-    #121f52 52%,
-    #1a2060 60%,
-    #241640 72%,
-    #2a1135 82%,
-    #320e28 90%,
-    #3d1820 100%
-  );
+.scene-beach .l1,
+.scene-beach .l2,
+.scene-beach .l3,
+.scene-beach .scene-particles,
+.scene-beach .scene-overlay {
+  opacity: 0;
 }
 
-/* L2: Stars + Aurora/Milky Way + Moon */
-.scene-beach .l2 {
-  /* Milky Way aurora band */
-  background:
-    radial-gradient(ellipse 90% 28% at 55% 55%, rgba(100,60,160,0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 70% 20% at 40% 60%, rgba(60,40,120,0.18) 0%, transparent 60%),
-    radial-gradient(ellipse 50% 15% at 70% 52%, rgba(160,80,200,0.14) 0%, transparent 60%),
-    /* Horizon warm glow */
-    radial-gradient(ellipse 100% 25% at 50% 100%, rgba(200,80,60,0.18) 0%, transparent 55%),
-    radial-gradient(ellipse 80% 20% at 30% 100%, rgba(160,60,80,0.12) 0%, transparent 50%),
-    /* Star field — layer A (bright) */
-    radial-gradient(1.8px 1.8px at  6%  9%, rgba(255,255,255,0.95), transparent),
-    radial-gradient(1.2px 1.2px at 14%  4%, rgba(255,255,255,0.80), transparent),
-    radial-gradient(2.0px 2.0px at 22% 14%, rgba(255,255,255,0.90), transparent),
-    radial-gradient(1.0px 1.0px at 31%  7%, rgba(255,255,255,0.70), transparent),
-    radial-gradient(1.5px 1.5px at 43%  3%, rgba(255,255,255,0.85), transparent),
-    radial-gradient(1.2px 1.2px at 52% 11%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(2.2px 2.2px at 61%  5%, rgba(255,255,255,0.95), transparent),
-    radial-gradient(1.0px 1.0px at 69% 18%, rgba(255,255,255,0.65), transparent),
-    radial-gradient(1.5px 1.5px at 77%  8%, rgba(255,255,255,0.80), transparent),
-    radial-gradient(1.8px 1.8px at 86%  2%, rgba(255,255,255,0.90), transparent),
-    radial-gradient(1.0px 1.0px at 94% 15%, rgba(255,255,255,0.70), transparent),
-    radial-gradient(1.2px 1.2px at  3% 22%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 18% 28%, rgba(255,255,255,0.85), transparent),
-    radial-gradient(1.0px 1.0px at 28% 19%, rgba(255,255,255,0.60), transparent),
-    radial-gradient(1.8px 1.8px at 38% 32%, rgba(255,255,255,0.80), transparent),
-    radial-gradient(1.2px 1.2px at 48% 25%, rgba(255,255,255,0.70), transparent),
-    radial-gradient(1.0px 1.0px at 58% 38%, rgba(255,255,255,0.65), transparent),
-    radial-gradient(2.0px 2.0px at 67% 22%, rgba(255,255,255,0.90), transparent),
-    radial-gradient(1.2px 1.2px at 79% 30%, rgba(255,255,255,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 91% 26%, rgba(255,255,255,0.80), transparent);
-  animation: aurora-shift 9s ease-in-out infinite;
-}
-
-/* Additional star field layer B (colored stars) */
-.scene-beach .l2::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(1.0px 1.0px at  9% 42%, rgba(180,200,255,0.85), transparent),
-    radial-gradient(1.5px 1.5px at 17% 35%, rgba(255,200,180,0.70), transparent),
-    radial-gradient(1.0px 1.0px at 26% 48%, rgba(200,255,200,0.75), transparent),
-    radial-gradient(1.8px 1.8px at 34% 38%, rgba(255,255,255,0.90), transparent),
-    radial-gradient(1.0px 1.0px at 46% 44%, rgba(180,160,255,0.80), transparent),
-    radial-gradient(1.2px 1.2px at 55% 30%, rgba(255,220,180,0.75), transparent),
-    radial-gradient(1.5px 1.5px at 64% 45%, rgba(200,240,255,0.85), transparent),
-    radial-gradient(1.0px 1.0px at 73% 36%, rgba(255,200,220,0.70), transparent),
-    radial-gradient(2.0px 2.0px at 82% 42%, rgba(255,255,255,0.95), transparent),
-    radial-gradient(1.2px 1.2px at 89% 33%, rgba(200,180,255,0.80), transparent),
-    radial-gradient(1.0px 1.0px at  4% 52%, rgba(255,240,200,0.65), transparent),
-    radial-gradient(1.5px 1.5px at 11% 58%, rgba(180,220,255,0.75), transparent),
-    radial-gradient(1.0px 1.0px at 21% 62%, rgba(255,255,255,0.70), transparent),
-    radial-gradient(1.2px 1.2px at 37% 55%, rgba(200,255,220,0.80), transparent),
-    radial-gradient(1.8px 1.8px at 50% 58%, rgba(255,200,160,0.85), transparent),
-    radial-gradient(1.0px 1.0px at 60% 52%, rgba(180,200,255,0.70), transparent),
-    radial-gradient(1.5px 1.5px at 72% 60%, rgba(255,255,255,0.90), transparent),
-    radial-gradient(1.0px 1.0px at 84% 55%, rgba(200,180,255,0.75), transparent),
-    radial-gradient(1.2px 1.2px at 96% 48%, rgba(255,230,200,0.80), transparent);
-  animation: star-twinkle-b 7s ease-in-out infinite 1.5s;
-}
-
-/* Moon */
-.scene-beach .l2::after {
-  content: '';
-  position: absolute;
-  top: 16%; left: 32%;
-  width: 52px; height: 52px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 42% 38%,
-    #f5f0e8 0%, #ede5c8 40%, #d4c890 100%);
-  box-shadow:
-    0 0 28px 8px rgba(220,210,255,0.28),
-    0 0 70px 20px rgba(200,185,255,0.10);
-  animation: moon-glow 5s ease-in-out infinite;
-}
-
-/* L3: Ocean + Beach + Silhouettes */
-.scene-beach .l3 {
-  /* Island/mountain silhouette + ocean + sand */
-  background:
-    /* Sandy beach strip */
-    linear-gradient(transparent 76%, #c8b88a 76%, #b8a47a 84%, #a89068 88%, transparent 90%),
-    /* Ocean surface with depth */
-    linear-gradient(transparent 52%, #0f2a4a 52%, #0c2040 65%, #0a1a35 76%),
-    /* Sky at ocean horizon */
-    linear-gradient(transparent 50%, rgba(20,30,60,0.8) 52%);
-}
-
-/* Island/mountain silhouette in mid-distance */
-.scene-beach .l3::before {
-  content: '';
-  position: absolute;
-  bottom: 20%; left: 30%; right: 10%;
-  height: 28%;
-  background: #0a1828;
-  clip-path: polygon(
-    0% 100%, 0% 70%,
-    8% 70%, 18% 30%, 28% 70%,
-    35% 70%, 42% 45%, 50% 20%, 58% 45%, 65% 70%,
-    72% 70%, 78% 55%, 86% 68%, 92% 70%,
-    100% 70%, 100% 100%
-  );
-  filter: blur(0.5px);
-}
-
-/* Palm tree silhouette (left side) */
-.scene-beach .scene-particles {
-  /* Palm trunk + fronds via SVG data URI */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='500' viewBox='0 0 200 500'%3E%3C!-- Trunk --%3E%3Cpath d='M90 500 Q85 400 80 300 Q78 250 82 200 Q85 160 80 120 Q78 90 85 70' stroke='%23091520' stroke-width='18' fill='none' stroke-linecap='round'/%3E%3C!-- Fronds --%3E%3Cellipse cx='85' cy='68' rx='90' ry='18' fill='%230d2418' transform='rotate(-20 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='85' ry='16' fill='%230f2a1e' transform='rotate(15 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='80' ry='15' fill='%23122e20' transform='rotate(-45 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='78' ry='14' fill='%230e2619' transform='rotate(50 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='75' ry='13' fill='%23112c1c' transform='rotate(-70 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='72' ry='12' fill='%230d2217' transform='rotate(75 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='68' ry='12' fill='%23102818' transform='rotate(-100 85 68)'/%3E%3Cellipse cx='85' cy='68' rx='65' ry='11' fill='%230c2014' transform='rotate(110 85 68)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: -20px bottom;
-  background-size: 200px 500px;
-  animation: palm-sway 6s ease-in-out infinite;
-}
-
-/* Second palm (right, partial) */
-.scene-beach .scene-particles::before {
-  content: '';
-  position: absolute;
-  right: 0; bottom: 0;
-  width: 140px; height: 380px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='380' viewBox='0 0 140 380'%3E%3Cpath d='M110 380 Q112 290 108 220 Q106 180 110 140 Q113 110 108 82' stroke='%23091520' stroke-width='14' fill='none' stroke-linecap='round'/%3E%3Cellipse cx='108' cy='80' rx='80' ry='15' fill='%230d2418' transform='rotate(-30 108 80)'/%3E%3Cellipse cx='108' cy='80' rx='75' ry='14' fill='%230f2a1e' transform='rotate(20 108 80)'/%3E%3Cellipse cx='108' cy='80' rx='70' ry='13' fill='%23122e20' transform='rotate(-55 108 80)'/%3E%3Cellipse cx='108' cy='80' rx='68' ry='12' fill='%230e2619' transform='rotate(60 108 80)'/%3E%3Cellipse cx='108' cy='80' rx='65' ry='11' fill='%23112c1c' transform='rotate(-80 108 80)'/%3E%3Cellipse cx='108' cy='80' rx='62' ry='11' fill='%230d2217' transform='rotate(90 108 80)'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right bottom;
-  animation: palm-sway 8s ease-in-out infinite 2s;
-}
-
-/* Reading person silhouette + waves animation */
-.scene-beach .scene-particles::after {
-  content: '';
-  position: absolute;
-  bottom: 20%; left: 0; right: 0;
-  height: 12%;
-  /* Animated ocean waves using layered radial gradients */
-  background:
-    /* Wave crest 1 */
-    radial-gradient(ellipse 180px 22px at 15% 60%, rgba(220,235,255,0.55) 0%, transparent 70%),
-    radial-gradient(ellipse 140px 16px at 35% 40%, rgba(210,230,255,0.45) 0%, transparent 70%),
-    radial-gradient(ellipse 200px 24px at 58% 70%, rgba(220,235,255,0.55) 0%, transparent 70%),
-    radial-gradient(ellipse 150px 18px at 78% 35%, rgba(210,230,255,0.40) 0%, transparent 70%),
-    radial-gradient(ellipse 160px 20px at 95% 60%, rgba(215,232,255,0.45) 0%, transparent 70%);
-  animation: wave-roll 7s ease-in-out infinite;
-}
-
-/* Second wave layer (slightly further out) */
-.scene-beach .l3::after {
-  content: '';
-  position: absolute;
-  bottom: 24%; left: -50%;
-  width: 200%; height: 8%;
-  background:
-    radial-gradient(ellipse 160px 14px at 10% 50%, rgba(180,210,240,0.35) 0%, transparent 70%),
-    radial-gradient(ellipse 130px 12px at 28% 50%, rgba(170,205,235,0.30) 0%, transparent 70%),
-    radial-gradient(ellipse 180px 16px at 48% 50%, rgba(180,210,240,0.38) 0%, transparent 70%),
-    radial-gradient(ellipse 140px 12px at 68% 50%, rgba(170,205,235,0.30) 0%, transparent 70%),
-    radial-gradient(ellipse 160px 14px at 88% 50%, rgba(180,210,240,0.35) 0%, transparent 70%);
-  animation: wave-roll-r 10s ease-in-out infinite 1.5s;
-}
-
-/* Moon reflection on water */
-.scene-beach .l1::after {
-  content: '';
-  position: absolute;
-  top: 58%; left: 28%; right: 60%;
-  height: 18%;
-  background: linear-gradient(to bottom,
-    rgba(255,245,200,0.18) 0%,
-    rgba(220,210,255,0.10) 40%,
-    transparent 100%);
-  filter: blur(4px);
-  animation: ocean-glint 4s ease-in-out infinite;
-}
-
-/* Twinkling star layer C (faint background stars) */
-.scene-beach .l1::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(1px 1px at  8% 10%, rgba(255,255,255,0.50), transparent),
-    radial-gradient(1px 1px at 16% 22%, rgba(255,255,255,0.40), transparent),
-    radial-gradient(1px 1px at 24% 16%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1px 1px at 33% 28%, rgba(255,255,255,0.45), transparent),
-    radial-gradient(1px 1px at 41% 12%, rgba(255,255,255,0.50), transparent),
-    radial-gradient(1px 1px at 49% 20%, rgba(255,255,255,0.40), transparent),
-    radial-gradient(1px 1px at 57% 32%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1px 1px at 65% 15%, rgba(255,255,255,0.45), transparent),
-    radial-gradient(1px 1px at 74% 24%, rgba(255,255,255,0.50), transparent),
-    radial-gradient(1px 1px at 82% 10%, rgba(255,255,255,0.40), transparent),
-    radial-gradient(1px 1px at 90% 18%, rgba(255,255,255,0.55), transparent),
-    radial-gradient(1px 1px at  5% 38%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 20% 44%, rgba(255,255,255,0.45), transparent),
-    radial-gradient(1px 1px at 44% 40%, rgba(255,255,255,0.40), transparent),
-    radial-gradient(1px 1px at 62% 48%, rgba(255,255,255,0.35), transparent),
-    radial-gradient(1px 1px at 88% 42%, rgba(255,255,255,0.45), transparent);
-  animation: star-twinkle 5s ease-in-out infinite 2s;
-}
 
 
 /* ════════════════════════════════════════════════════════════

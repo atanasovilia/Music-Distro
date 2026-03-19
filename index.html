@@ -19,7 +19,18 @@
     <div class="scene-layer l1"></div>
     <div class="scene-layer l2"></div>
     <div class="scene-layer l3"></div>
-    <div class="scene-media" aria-hidden="true"></div>
+    <video
+      class="scene-media-video"
+      id="scene-media-video"
+      aria-hidden="true"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+    >
+      <source src="./assets/scenes/beach-animated.mp4" type="video/mp4">
+    </video>
     <div class="scene-particles" id="scene-particles"></div>
     <div class="scene-overlay"></div>
   </div>
