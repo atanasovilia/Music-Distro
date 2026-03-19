@@ -6,7 +6,7 @@
 // !! REPLACE WITH YOUR OWN VALUES !!
 const CLIENT_ID     = '45b32a563bb846a3974bbe789d9cca0d';
 const APP_BASE = (window.__APP_BASE_URL__ || window.location.origin).replace(/\/$/, '');
-const REDIRECT_URI  = (window.__SPOTIFY_REDIRECT_URI__ || APP_BASE).replace(/\/$/, '');
+const REDIRECT_URI  = (window.__SPOTIFY_REDIRECT_URI__ || `${APP_BASE}/callback`).replace(/\/$/, '');
 const SEARCH_PAGE_LIMIT = 10;
 const PLAYLIST_TRACKS_PAGE_LIMIT = 50;
 const SCOPES = [
