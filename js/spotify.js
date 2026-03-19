@@ -7,6 +7,8 @@
 const CLIENT_ID     = '45b32a563bb846a3974bbe789d9cca0d';
 const APP_BASE = (window.__APP_BASE_URL__ || window.location.origin).replace(/\/$/, '');
 const REDIRECT_URI  = (window.__SPOTIFY_REDIRECT_URI__ || APP_BASE).replace(/\/$/, '');
+const SEARCH_PAGE_LIMIT = 10;
+const PLAYLIST_TRACKS_PAGE_LIMIT = 50;
 const SCOPES = [
   'streaming',
   'user-read-email',
@@ -210,7 +212,7 @@ export class SpotifyManager {
   }
 
   async _safeSearch(urlWithParams, fallbackMessage, retryBuilder) {
-    const res = await this._apiFetch(urlWithParams);
+    let res = await this._apiFetch(urlWithParams);
     if (res.ok) return res;
 
     // Spotify occasionally returns 400 for parameter parsing. Retry with a minimal query shape.
@@ -219,6 +221,7 @@ export class SpotifyManager {
       if (retryUrl) {
         const retryRes = await this._apiFetch(retryUrl);
         if (retryRes.ok) return retryRes;
+        res = retryRes;
       }
     }
 
@@ -246,7 +249,7 @@ export class SpotifyManager {
 
   async _searchPaged(query, type, targetCount, fallbackMessage, options = {}) {
     const hardLimit = this._sanitizeTargetCount(targetCount, 12);
-    const pageSize = 50;
+    const pageSize = SEARCH_PAGE_LIMIT;
     const includeMarket = options.includeMarket !== false;
     const seen = new Set();
     const items = [];
@@ -268,7 +271,7 @@ export class SpotifyManager {
           const retryParams = new URLSearchParams({
             q: query,
             type,
-            limit: '20',
+            limit: String(SEARCH_PAGE_LIMIT),
             offset: String(offset),
           });
           return `https://api.spotify.com/v1/search?${retryParams}`;
@@ -608,7 +611,7 @@ export class SpotifyManager {
     if (!playlistId) return [];
 
     const hardLimit = Math.max(1, Math.min(500, Number.parseInt(String(maxTracks), 10) || 200));
-    const pageLimit = 100;
+    const pageLimit = PLAYLIST_TRACKS_PAGE_LIMIT;
     let offset = 0;
     const tracks = [];
 
