@@ -36,6 +36,7 @@ const $ = id => document.getElementById(id);
 
 let localQueue = [];
 let queueAutoAdvanceLock = false;
+let pendingSpotifyManualAuthUrl = '';
 
 const SCENE_VIDEO_MAP = {
   beach: 'assets/scenes/beach-animated.mp4',
@@ -1098,29 +1099,17 @@ if (!DOM.btnConnect) {
       showToast('Disconnected from Spotify');
     } else {
       try {
+        if (pendingSpotifyManualAuthUrl) {
+          await runManualSpotifyAuthFlow();
+          return;
+        }
+
         console.log('[UI] Connect button clicked, calling spotify.login()');
         const loginResult = await spotify.login();
 
         if (loginResult?.mode === 'manual' && loginResult?.authUrl) {
-          const copied = await copyText(loginResult.authUrl);
-          const promptMessage = copied
-            ? 'Discord blocked the Spotify popup. The auth link was copied. Open it in a normal browser, approve access, then paste the final callback URL or just the code here.'
-            : 'Discord blocked the Spotify popup. Open this Spotify auth link in a normal browser, approve access, then paste the final callback URL or just the code here:';
-          const pasted = window.prompt(promptMessage, copied ? '' : loginResult.authUrl);
-          if (!pasted) {
-            showToast('Spotify auth canceled');
-            return;
-          }
-
-          const manualCode = extractSpotifyCodeFromInput(pasted);
-          if (!manualCode) {
-            showToast('Could not find Spotify code in your input');
-            return;
-          }
-
-          await spotify.handleCallback(manualCode);
-          showToast('Spotify connected');
-          await connectSpotify();
+          pendingSpotifyManualAuthUrl = loginResult.authUrl;
+          await runManualSpotifyAuthFlow();
         }
       } catch (err) {
         console.error('[UI] Spotify login failed:', err);
@@ -1443,6 +1432,32 @@ function extractSpotifyCodeFromInput(value) {
   } catch {
     return input;
   }
+}
+
+async function runManualSpotifyAuthFlow() {
+  if (!pendingSpotifyManualAuthUrl) return;
+
+  const copied = await copyText(pendingSpotifyManualAuthUrl);
+  const promptMessage = copied
+    ? 'Discord blocked Spotify popup. The auth link was copied. Open it in your normal browser, approve access, then paste the callback URL (or just code).'
+    : 'Discord blocked Spotify popup. Open this auth link in your normal browser, approve access, then paste callback URL (or just code):';
+
+  const pasted = window.prompt(promptMessage, pendingSpotifyManualAuthUrl);
+  if (!pasted) {
+    showToast('Spotify auth canceled. Click Connect Spotify to retry.');
+    return;
+  }
+
+  const manualCode = extractSpotifyCodeFromInput(pasted);
+  if (!manualCode) {
+    showToast('Could not find Spotify code. Paste callback URL or code.');
+    return;
+  }
+
+  await spotify.handleCallback(manualCode);
+  pendingSpotifyManualAuthUrl = '';
+  showToast('Spotify connected');
+  await connectSpotify();
 }
 
 async function copyText(value) {
