@@ -29,8 +29,12 @@ let hostPublishTimer = null;
 
 const HOST_PLAYBACK_PUBLISH_MS = 1500;
 const REMOTE_SEEK_DRIFT_MS = 2000;
+const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 
 const $ = id => document.getElementById(id);
+
+let localQueue = [];
+let queueAutoAdvanceLock = false;
 
 const DOM = {
   body: document.body,
@@ -68,6 +72,9 @@ const DOM = {
   btnSearchMixes: $('btn-search-mixes'),
   btnJamSearch: $('btn-jam-search'),
   jamSearchResults: $('jam-search-results'),
+  queueList: $('queue-list'),
+  queueCount: $('queue-count'),
+  btnQueueClear: $('btn-queue-clear'),
   toast: $('toast'),
 };
 
@@ -77,7 +84,10 @@ async function init() {
   bindPlayerControls();
   bindVolumeControls();
   bindJamControls();
+  bindQueueControls();
   handleSpotifyCallback();
+  loadLocalQueue();
+  renderQueue();
 
   discord.onParticipantsChange = () => {
     discord.renderAvatars(DOM.participants);
@@ -170,6 +180,174 @@ function bindJamControls() {
   });
 }
 
+function bindQueueControls() {
+  DOM.btnQueueClear?.addEventListener('click', () => {
+    if (!localQueue.length) return;
+    localQueue = [];
+    saveLocalQueue();
+    renderQueue();
+    showToast('Queue cleared');
+  });
+}
+
+function loadLocalQueue() {
+  try {
+    const raw = localStorage.getItem(LOCAL_QUEUE_KEY);
+    const parsed = JSON.parse(raw || '[]');
+    localQueue = Array.isArray(parsed)
+      ? parsed.filter(item => item && typeof item.uri === 'string' && item.uri.length > 0)
+      : [];
+  } catch {
+    localQueue = [];
+  }
+}
+
+function saveLocalQueue() {
+  localStorage.setItem(LOCAL_QUEUE_KEY, JSON.stringify(localQueue));
+}
+
+function enqueueTrack(item, toTop = false) {
+  if (!item?.uri) return false;
+  if (localQueue.some(q => q.uri === item.uri)) {
+    showToast('Already in queue');
+    return false;
+  }
+
+  const entry = {
+    uri: item.uri,
+    name: item.name || 'Unknown title',
+    artist: item.artist || '',
+    art: item.art || null,
+  };
+
+  if (toTop) localQueue.unshift(entry);
+  else localQueue.push(entry);
+
+  saveLocalQueue();
+  renderQueue();
+  return true;
+}
+
+function removeQueueItem(index) {
+  if (index < 0 || index >= localQueue.length) return;
+  localQueue.splice(index, 1);
+  saveLocalQueue();
+  renderQueue();
+}
+
+function moveQueueItem(index, direction) {
+  const target = index + direction;
+  if (index < 0 || target < 0 || index >= localQueue.length || target >= localQueue.length) return;
+  const [item] = localQueue.splice(index, 1);
+  localQueue.splice(target, 0, item);
+  saveLocalQueue();
+  renderQueue();
+}
+
+function renderQueue() {
+  if (!DOM.queueList || !DOM.queueCount) return;
+
+  DOM.queueCount.textContent = String(localQueue.length);
+  DOM.queueList.innerHTML = '';
+
+  if (!localQueue.length) {
+    DOM.queueList.innerHTML = '<div class="vote-empty">Queue is empty. Add songs from search or suggestions.</div>';
+    return;
+  }
+
+  localQueue.forEach((item, index) => {
+    const row = document.createElement('div');
+    row.className = 'queue-item';
+    row.innerHTML = `
+      <div class="jam-result-art">${item.art ? `<img src="${item.art}" alt="">` : '🎵'}</div>
+      <div class="jam-result-meta">
+        <div class="jam-result-name">${escapeHtml(item.name)}</div>
+        <div class="jam-result-artist">${escapeHtml(item.artist || '')}</div>
+      </div>
+      <div class="queue-item-actions">
+        <button class="queue-btn q-play" type="button">Play</button>
+        <button class="queue-btn q-up" type="button" ${index === 0 ? 'disabled' : ''}>↑</button>
+        <button class="queue-btn q-down" type="button" ${index === localQueue.length - 1 ? 'disabled' : ''}>↓</button>
+        <button class="queue-btn q-del" type="button">✕</button>
+      </div>
+    `;
+
+    row.querySelector('.q-play')?.addEventListener('click', async () => {
+      await playQueueItemAt(index);
+    });
+    row.querySelector('.q-up')?.addEventListener('click', () => moveQueueItem(index, -1));
+    row.querySelector('.q-down')?.addEventListener('click', () => moveQueueItem(index, 1));
+    row.querySelector('.q-del')?.addEventListener('click', () => removeQueueItem(index));
+
+    DOM.queueList.appendChild(row);
+  });
+}
+
+async function playQueueItemAt(index) {
+  if (index < 0 || index >= localQueue.length) return;
+  if (!spotify.isLoggedIn()) {
+    showToast('Connect Spotify to play queue items');
+    return;
+  }
+
+  const [item] = localQueue.splice(index, 1);
+  saveLocalQueue();
+  renderQueue();
+  await playQueueItem(item);
+}
+
+async function playNextFromQueue(reason = 'manual') {
+  if (!localQueue.length) return;
+  if (!spotify.isLoggedIn()) return;
+
+  const item = localQueue.shift();
+  saveLocalQueue();
+  renderQueue();
+  await playQueueItem(item);
+
+  if (reason === 'manual') showToast(`Now playing: ${truncate(item.name, 22)}`);
+}
+
+async function playQueueItem(item) {
+  if (!item?.uri) return;
+
+  if (isPlaylistUri(item.uri)) {
+    await spotify.play(item.uri, null);
+  } else {
+    await spotify.play(null, [item.uri]);
+  }
+
+  if (isJamHost) {
+    await jam.publishPlayback({
+      trackUri: item.uri,
+      trackName: item.name,
+      artist: item.artist,
+      isPlaying: true,
+      positionMs: 0,
+      durationMs: spotify.durationMs || 0,
+    });
+  }
+
+  maybePublishHostPlayback(true);
+}
+
+function maybeAutoAdvanceQueue(pos, dur) {
+  if (!spotify.isLoggedIn()) return;
+  if (!spotify.isPlaying) return;
+  if (!localQueue.length) return;
+  if (!dur || dur <= 0) return;
+
+  const remainingMs = Math.max(0, dur - pos);
+  if (remainingMs > 900 || queueAutoAdvanceLock) return;
+
+  queueAutoAdvanceLock = true;
+  playNextFromQueue('auto').catch(err => {
+    console.warn('[Queue] Auto-advance failed:', err?.message || err);
+  }).finally(() => {
+    setTimeout(() => { queueAutoAdvanceLock = false; }, 1200);
+  });
+}
+
 async function runJamSearch() {
   if (!spotify.isLoggedIn()) {
     showToast('Connect Spotify to search tracks');
@@ -231,6 +409,7 @@ function renderJamSearchResults(items) {
     const row = document.createElement('div');
     row.className = 'jam-result';
     const alreadySuggested = (jamState?.suggestions || []).some(s => s.uri === item.uri);
+    const alreadyQueued = localQueue.some(q => q.uri === item.uri);
 
     const img = item.art;
     row.innerHTML = `
@@ -239,10 +418,13 @@ function renderJamSearchResults(items) {
         <div class="jam-result-name">${escapeHtml(item.name)}</div>
         <div class="jam-result-artist">${escapeHtml(item.subtitle || '')}</div>
       </div>
-      <button class="jam-result-btn" type="button" ${alreadySuggested ? 'disabled' : ''}>${alreadySuggested ? 'Added' : 'Add'}</button>
+      <div class="jam-result-actions">
+        <button class="jam-result-btn jam-add-btn" type="button" ${alreadySuggested ? 'disabled' : ''}>${alreadySuggested ? 'Added' : 'Add'}</button>
+        <button class="jam-result-btn jam-queue-btn" type="button" ${alreadyQueued ? 'disabled' : ''}>${alreadyQueued ? 'Queued' : 'Queue'}</button>
+      </div>
     `;
 
-    row.querySelector('.jam-result-btn').addEventListener('click', async () => {
+    row.querySelector('.jam-add-btn').addEventListener('click', async () => {
       if (alreadySuggested) {
         showToast('Already in suggestions');
         return;
@@ -258,6 +440,19 @@ function renderJamSearchResults(items) {
         showToast(`Added: ${truncate(item.name, 20)}`);
       } catch (err) {
         showToast(err?.message || 'Could not add suggestion');
+      }
+    });
+
+    row.querySelector('.jam-queue-btn').addEventListener('click', () => {
+      const ok = enqueueTrack({
+        uri: item.uri,
+        name: item.name,
+        artist: item.subtitle || '',
+        art: item.art || null,
+      });
+      if (ok) {
+        showToast(`Queued: ${truncate(item.name, 20)}`);
+        renderJamSearchResults(items);
       }
     });
 
@@ -308,7 +503,8 @@ function renderSuggestionList(suggestions) {
         <div class="vo-artist">${escapeHtml(s.artist || '')}</div>
       </div>
       <div class="vo-count">${s.votes || 0} 🗳</div>
-      ${isJamHost ? '<button class="jam-result-btn" type="button" style="margin-left:6px">Play</button>' : ''}
+      <button class="jam-result-btn jam-queue-btn" type="button" style="margin-left:6px">Queue</button>
+      ${isJamHost ? '<button class="jam-result-btn jam-play-btn" type="button" style="margin-left:6px">Play</button>' : ''}
     `;
 
     div.addEventListener('click', async () => {
@@ -319,7 +515,21 @@ function renderSuggestionList(suggestions) {
       }
     });
 
-    const playBtn = div.querySelector('.jam-result-btn');
+    const queueBtn = div.querySelector('.jam-queue-btn');
+    if (queueBtn) {
+      queueBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const ok = enqueueTrack({
+          uri: s.uri,
+          name: s.name,
+          artist: s.artist || '',
+          art: s.art || null,
+        });
+        if (ok) showToast(`Queued: ${truncate(s.name, 20)}`);
+      });
+    }
+
+    const playBtn = div.querySelector('.jam-play-btn');
     if (playBtn) {
       playBtn.addEventListener('click', async e => {
         e.stopPropagation();
@@ -617,6 +827,7 @@ async function connectSpotify() {
   };
 
   spotify.onTrackChange = track => {
+    queueAutoAdvanceLock = false;
     updateTrackUI(track);
     DOM.npMiniText.textContent = truncate(track.name, 22);
     maybePublishHostPlayback(true);
@@ -684,6 +895,12 @@ function bindPlayerControls() {
       showToast('Connect Spotify to use track controls');
       return;
     }
+
+    if (localQueue.length > 0) {
+      await playNextFromQueue('manual');
+      return;
+    }
+
     await spotify.next();
     maybePublishHostPlayback(true);
   });
@@ -776,6 +993,7 @@ function updateProgress(pos, dur) {
   DOM.progressFill.style.width = pct + '%';
   DOM.timeCurrent.textContent = msToTime(pos);
   DOM.timeTotal.textContent = msToTime(dur);
+  maybeAutoAdvanceQueue(pos, dur);
 }
 
 function resetPlayer() {

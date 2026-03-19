@@ -477,6 +477,86 @@ body {
   font-family: 'DM Mono', monospace; text-align: right; letter-spacing: 0.06em;
 }
 
+.queue-section {
+  margin-top: 10px;
+  border-top: 1px solid var(--glass-border);
+  padding-top: 10px;
+}
+
+.queue-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.queue-title {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+}
+
+.queue-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.queue-count {
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  color: var(--accent);
+}
+
+.queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 170px;
+  overflow-y: auto;
+}
+
+.queue-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 7px 8px;
+  background: rgba(255,255,255,0.03);
+}
+
+.queue-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.queue-btn {
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  border-radius: 8px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  cursor: pointer;
+}
+
+.queue-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.jam-result-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* ─── Mixer Panel (right) ───────────────────────────────────────────────────── */
 .mixer-panel {
   grid-area: mixer;
