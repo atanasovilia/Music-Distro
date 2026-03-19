@@ -22,7 +22,7 @@ The Jam API now supports persistent storage through Upstash Redis on Vercel. If 
 - assets/sounds/forest/
 - assets/sounds/nightsky/
 - css/style.css
-- css/scenes.css
+- css/scenes/scenes.css
 - js/main.js
 - js/jam-sync.js
 - js/scenes.js

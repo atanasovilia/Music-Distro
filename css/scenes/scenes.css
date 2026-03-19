@@ -504,91 +504,149 @@
 
 
 /* ════════════════════════════════════════════════════════════
-   🐸  MOONLIT SWAMP — Marsh water, reeds, and wet night fog
+   🐸  MINECRAFT-STYLE RAINY SWAMP — blocky marsh mood
 ════════════════════════════════════════════════════════════ */
 
 .scene-forest .l1 {
-  background: linear-gradient(175deg,
-    #06110d 0%,
-    #0b1d17 22%,
-    #112b20 46%,
-    #17362a 68%,
-    #1c4131 100%);
+  background: linear-gradient(180deg,
+    #1f3128 0%,
+    #2f4638 25%,
+    #3c5542 55%,
+    #2a3f31 100%);
 }
 
-/* Moonlight through humid mist */
+/* Pixel sky haze + distant biome fog */
 .scene-forest .l2 {
   background:
-    radial-gradient(ellipse 18% 60% at 42% 0%, rgba(185,225,205,0.12) 0%, transparent 100%),
-    radial-gradient(ellipse 12% 40% at 64% 0%, rgba(160,205,180,0.09) 0%, transparent 100%),
-    radial-gradient(ellipse 20% 25% at 50% 0%, rgba(145,190,165,0.11) 0%, transparent 100%),
-    radial-gradient(ellipse 84% 28% at 50% 100%, rgba(20,64,52,0.42) 0%, transparent 100%);
+    radial-gradient(ellipse 75% 25% at 50% 90%, rgba(118,150,124,0.32) 0%, transparent 100%),
+    linear-gradient(180deg, rgba(210,235,220,0.06) 0%, rgba(120,160,140,0.02) 40%, transparent 100%);
 }
 
-/* Reeds and cypress silhouettes */
+/* Blocky tree silhouettes */
+.scene-forest .l2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22%;
+  height: 42%;
+  background:
+    linear-gradient(#20362a 0 0) 3% 100% / 6% 82% no-repeat,
+    linear-gradient(#2f4a37 0 0) 1% 28% / 12% 26% no-repeat,
+    linear-gradient(#21372a 0 0) 19% 100% / 6% 88% no-repeat,
+    linear-gradient(#33513c 0 0) 14% 24% / 16% 32% no-repeat,
+    linear-gradient(#20382b 0 0) 39% 100% / 7% 84% no-repeat,
+    linear-gradient(#34523d 0 0) 33% 26% / 18% 34% no-repeat,
+    linear-gradient(#1f3529 0 0) 62% 100% / 7% 86% no-repeat,
+    linear-gradient(#35533f 0 0) 55% 22% / 18% 36% no-repeat,
+    linear-gradient(#22392c 0 0) 82% 100% / 6% 80% no-repeat,
+    linear-gradient(#324f3b 0 0) 76% 28% / 16% 30% no-repeat,
+    linear-gradient(#21372a 0 0) 95% 100% / 5% 78% no-repeat,
+    linear-gradient(#2c4735 0 0) 90% 32% / 10% 24% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* Hanging vines */
+.scene-forest .l2::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(rgba(38,74,51,0.65) 0 0) 22% 18% / 2px 25% no-repeat,
+    linear-gradient(rgba(38,74,51,0.65) 0 0) 27% 20% / 2px 22% no-repeat,
+    linear-gradient(rgba(38,74,51,0.65) 0 0) 58% 16% / 2px 26% no-repeat,
+    linear-gradient(rgba(38,74,51,0.65) 0 0) 63% 20% / 2px 20% no-repeat,
+    linear-gradient(rgba(38,74,51,0.65) 0 0) 84% 24% / 2px 18% no-repeat;
+  image-rendering: pixelated;
+}
+
+/* Water + shore blocks */
+.scene-forest .l3 {
+  overflow: visible;
+  background:
+    linear-gradient(to bottom, transparent 66%, rgba(32,64,54,0.72) 66%, rgba(23,49,43,0.92) 100%),
+    linear-gradient(90deg,
+      rgba(48,77,59,0.92) 0 12%,
+      rgba(32,60,47,0.86) 12% 23%,
+      rgba(52,83,63,0.9) 23% 34%,
+      rgba(29,56,45,0.84) 34% 47%,
+      rgba(50,80,61,0.9) 47% 59%,
+      rgba(30,58,46,0.86) 59% 73%,
+      rgba(52,82,64,0.9) 73% 86%,
+      rgba(28,56,44,0.86) 86% 100%
+    );
+  image-rendering: pixelated;
+}
+
+/* Gentle wave sheen */
 .scene-forest .l3::before {
   content: '';
-  position: absolute; bottom: 0; left: 0; right: 0; height: 74%;
-  background: #0b1f15;
-  clip-path: polygon(
-    0% 100%, 0% 68%,
-    3% 68%, 4% 36%, 5% 16%, 6% 7%, 7% 16%, 8% 36%, 10% 68%,
-    12% 68%, 13% 50%, 14% 24%, 15% 8%, 16% 24%, 17% 50%, 18% 68%,
-    22% 68%, 24% 42%, 26% 20%, 28% 4%, 30% 20%, 32% 42%, 34% 68%,
-    38% 68%, 40% 46%, 42% 26%, 44% 10%, 46% 26%, 48% 46%, 50% 68%,
-    54% 68%, 56% 44%, 58% 22%, 60% 6%, 62% 22%, 64% 44%, 66% 68%,
-    70% 68%, 72% 48%, 74% 30%, 76% 12%, 78% 30%, 80% 48%, 82% 68%,
-    86% 68%, 88% 40%, 90% 20%, 92% 10%, 94% 20%, 96% 40%, 98% 68%,
-    100% 68%, 100% 100%
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 8%;
+  height: 20%;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(148,190,175,0.18) 0 12px,
+    rgba(148,190,175,0.08) 12px 24px
   );
-  animation: trees-sway 9s ease-in-out infinite;
+  opacity: 0.45;
+  animation: bokeh-drift 7s ease-in-out infinite;
+  image-rendering: pixelated;
 }
 
-/* Marsh mist and wet haze */
+/* Pixel rain */
 .scene-forest .l3::after {
-  content: '';
-  position: absolute; bottom: 0; left: -10%; right: -10%; height: 34%;
-  background:
-    radial-gradient(ellipse 65% 65% at 24% 100%, rgba(95,170,135,0.24) 0%, transparent 100%),
-    radial-gradient(ellipse 75% 75% at 72% 100%, rgba(78,150,120,0.22) 0%, transparent 100%),
-    radial-gradient(ellipse 90% 90% at 50% 100%, rgba(120,200,165,0.12) 0%, transparent 100%);
-  filter: blur(8px);
-  animation: mist-breathe 14s ease-in-out infinite;
-}
-
-/* Rain ripples and splash highlights */
-.scene-forest .scene-particles::before {
-  content: '';
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse 18px 7px at 18% 84%, rgba(170,220,205,0.22), transparent 100%),
-    radial-gradient(ellipse 16px 6px at 33% 88%, rgba(170,220,205,0.20), transparent 100%),
-    radial-gradient(ellipse 20px 8px at 51% 86%, rgba(170,220,205,0.22), transparent 100%),
-    radial-gradient(ellipse 16px 6px at 66% 90%, rgba(170,220,205,0.20), transparent 100%),
-    radial-gradient(ellipse 18px 7px at 82% 85%, rgba(170,220,205,0.22), transparent 100%);
-  animation: bokeh-drift 6.5s ease-in-out infinite;
-}
-
-.scene-forest .scene-particles::after {
   content: '';
   position: absolute;
   inset: 0;
   background: repeating-linear-gradient(
-    104deg,
+    102deg,
     transparent,
-    transparent 2px,
-    rgba(160,215,190,0.05) 2px,
-    rgba(160,215,190,0.05) 3px
+    transparent 6px,
+    rgba(202,230,220,0.14) 6px,
+    rgba(202,230,220,0.14) 8px
   );
-  animation: rain-fall 0.65s linear infinite;
+  animation: rain-fall 0.45s linear infinite;
 }
 
-/* Swamp waterline + muddy terrain */
-.scene-forest .l3 {
-  overflow: visible;
+/* Rain splash pixels */
+.scene-forest .scene-particles::before {
+  content: '';
+  position: absolute;
+  inset: 0;
   background:
-    linear-gradient(transparent 74%, rgba(7,22,16,0.88) 74%),
-    radial-gradient(ellipse 80% 18% at 50% 84%, rgba(20,70,56,0.26) 0%, transparent 100%);
+    linear-gradient(rgba(210,240,230,0.18) 0 0) 18% 82% / 10px 2px no-repeat,
+    linear-gradient(rgba(210,240,230,0.18) 0 0) 36% 86% / 8px 2px no-repeat,
+    linear-gradient(rgba(210,240,230,0.16) 0 0) 49% 84% / 11px 2px no-repeat,
+    linear-gradient(rgba(210,240,230,0.18) 0 0) 66% 88% / 9px 2px no-repeat,
+    linear-gradient(rgba(210,240,230,0.16) 0 0) 82% 83% / 10px 2px no-repeat;
+  animation: bokeh-drift 5.5s ease-in-out infinite;
+  image-rendering: pixelated;
+}
+
+/* Distant lightning fog pulse */
+.scene-forest .scene-particles::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 20%, rgba(215,240,230,0.12) 0%, transparent 62%);
+  animation: mist-breathe 9s ease-in-out infinite;
+}
+
+/* Use uploaded Minecraft swamp video instead of generated layers */
+.scene-forest .scene-media-video {
+  opacity: 1;
+  filter: saturate(1.04) contrast(1.02);
+}
+
+.scene-forest .l1,
+.scene-forest .l2,
+.scene-forest .l3,
+.scene-forest .scene-particles,
+.scene-forest .scene-overlay {
+  opacity: 0;
 }
 
 

@@ -37,9 +37,15 @@ const $ = id => document.getElementById(id);
 let localQueue = [];
 let queueAutoAdvanceLock = false;
 
+const SCENE_VIDEO_MAP = {
+  beach: 'assets/scenes/beach-animated.mp4',
+  forest: 'assets/scenes/swamp-animated.mp4',
+};
+
 const DOM = {
   body: document.body,
   sceneBg: $('scene-bg'),
+  sceneMediaVideo: $('scene-media-video'),
   sceneList: $('scene-list'),
   sceneEmoji: $('scene-emoji'),
   sceneName: $('scene-name'),
@@ -875,6 +881,7 @@ function switchScene(id, playAudio = true) {
 
   DOM.body.className = `scene-${id}`;
   DOM.sceneBg.className = `scene-bg scene-${id}`;
+  updateSceneVideo(id);
   DOM.sceneEmoji.textContent = scene.emoji;
   DOM.sceneName.textContent = scene.name;
   DOM.sceneTagline.textContent = scene.tagline;
@@ -889,6 +896,31 @@ function switchScene(id, playAudio = true) {
   }
 
   buildMixer(scene, playAudio);
+}
+
+function updateSceneVideo(sceneId) {
+  const video = DOM.sceneMediaVideo;
+  if (!video) return;
+
+  const relative = SCENE_VIDEO_MAP[sceneId] || null;
+  if (!relative) {
+    video.pause();
+    if (video.getAttribute('src')) {
+      video.removeAttribute('src');
+      video.load();
+    }
+    video.dataset.sceneVideo = '';
+    return;
+  }
+
+  const resolved = new URL(`../${relative}`, import.meta.url).href;
+  if (video.dataset.sceneVideo !== relative) {
+    video.src = resolved;
+    video.load();
+    video.dataset.sceneVideo = relative;
+  }
+
+  video.play().catch(() => {});
 }
 
 function buildMixer(scene, startAudio = true) {

@@ -201,6 +201,7 @@ export class AmbientEngine {
 
       case 'swamp_rain': {
         const fileNodes = this._loopAudioFiles([
+          'assets/sounds/forest/soul_serenity_sounds-water-noises-241049.mp3',
           'assets/sounds/rain/dragon-studio-relaxing-rain-444802.mp3',
           'assets/sounds/traffic/heavy-rain.mp3',
         ], gainNode, channel);
@@ -285,6 +286,13 @@ export class AmbientEngine {
       }
 
       case 'creek': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/forest/soul_serenity_sounds-water-noises-241049.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         const src = this._loopNoise(this._makeWhiteBuffer(2));
         const bp = this._filter('bandpass', 1800, 0.6);
         const lp = this._filter('lowpass', 4000, 0.7);
@@ -336,6 +344,13 @@ export class AmbientEngine {
       }
 
       case 'swamp_frogs': {
+        const fileNodes = this._loopAudioFiles([
+          'assets/sounds/forest/soundreality-frogs-151962.mp3',
+        ], gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
         this._scheduleFrogCroaks(gainNode, channel);
         break;
       }
