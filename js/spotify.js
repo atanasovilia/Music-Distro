@@ -209,6 +209,12 @@ export class SpotifyManager {
     return `${fallbackMessage} (${res.status})`;
   }
 
+  _sanitizeLimit(limit, fallback = 12) {
+    const parsed = Number.parseInt(String(limit), 10);
+    if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(50, Math.max(1, parsed));
+  }
+
   async getValidToken() {
     const expiry = parseInt(localStorage.getItem('spotify_expiry') || '0');
     if (Date.now() < expiry && this.token) return this.token;
@@ -458,9 +464,10 @@ export class SpotifyManager {
   // ── Queue / Recommendations ────────────────────────────────────
 
   async getRecommendations(seedGenres = ['chill', 'lo-fi'], limit = 5) {
+    const safeLimit = this._sanitizeLimit(limit, 5);
     const params = new URLSearchParams({
       seed_genres: seedGenres.join(','),
-      limit,
+      limit: String(safeLimit),
       target_energy: 0.3,
       target_valence: 0.5,
       target_instrumentalness: 0.7,
@@ -492,17 +499,19 @@ export class SpotifyManager {
   }
 
   async getUserPlaylists(limit = 10) {
-    const res = await this._apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}`);
+    const safeLimit = this._sanitizeLimit(limit, 10);
+    const res = await this._apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${safeLimit}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.items || [];
   }
 
   async searchTracks(query, limit = 12) {
+    const safeLimit = this._sanitizeLimit(limit, 12);
     const params = new URLSearchParams({
       q: query,
       type: 'track',
-      limit: String(limit),
+      limit: String(safeLimit),
       market: 'from_token',
     });
 
@@ -528,7 +537,7 @@ export class SpotifyManager {
     const fallbackParams = new URLSearchParams({
       q: query,
       type: 'track',
-      limit: String(limit),
+      limit: String(safeLimit),
     });
     const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
     if (!fallbackRes.ok) {
@@ -546,10 +555,11 @@ export class SpotifyManager {
   }
 
   async searchMixes(query, limit = 12) {
+    const safeLimit = this._sanitizeLimit(limit, 12);
     const params = new URLSearchParams({
       q: `${query} mix`,
       type: 'playlist',
-      limit: String(limit),
+      limit: String(safeLimit),
       market: 'from_token',
     });
 
@@ -575,7 +585,7 @@ export class SpotifyManager {
     const fallbackParams = new URLSearchParams({
       q: query,
       type: 'playlist',
-      limit: String(limit),
+      limit: String(safeLimit),
     });
     const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
     if (!fallbackRes.ok) {
