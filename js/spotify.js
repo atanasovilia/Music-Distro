@@ -581,6 +581,15 @@ export class SpotifyManager {
         if (res.status === 404) {
           throw new Error('Playlist not found or not accessible');
         }
+        if (res.status === 403) {
+          const details = await this._readApiError(res, 'Could not read playlist tracks');
+          const lowered = String(details || '').toLowerCase();
+          if (lowered.includes('insufficient') && lowered.includes('scope')) {
+            this.logout();
+            throw new Error('Spotify permissions are missing for mixes. Reconnect Spotify and try again.');
+          }
+          throw new Error('Spotify blocked access to this mix. Try another mix or reconnect Spotify.');
+        }
         if (res.status === 429) {
           throw new Error('Spotify rate limit hit. Try again in a moment.');
         }

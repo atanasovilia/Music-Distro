@@ -284,7 +284,12 @@ async function enqueueItemOrExpand(item, toTop = false) {
   try {
     tracks = await spotify.getPlaylistTracks(item.uri, 250);
   } catch (err) {
-    showToast(err?.message || 'Could not load mix tracks');
+    const msg = String(err?.message || 'Could not load mix tracks');
+    if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
+      showToast('Spotify blocked this mix. Try another mix or reconnect Spotify.');
+    } else {
+      showToast(msg);
+    }
     return { added: 0, skipped: 0 };
   }
 
