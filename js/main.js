@@ -158,14 +158,14 @@ function bindJamControls() {
   DOM.btnJamSearch.addEventListener('click', () => {
     runJamSearch().catch(err => {
       console.warn('[Jam] Search failed:', err?.message || err);
-      showToast('Search failed');
+      showToast(err?.message || 'Search failed');
     });
   });
 
   DOM.jamSearchInput.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
-      runJamSearch().catch(() => showToast('Search failed'));
+      runJamSearch().catch(err => showToast(err?.message || 'Search failed'));
     }
   });
 }

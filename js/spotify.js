@@ -110,15 +110,23 @@ export class SpotifyManager {
 
   _saveTokens({ access_token, refresh_token, expires_in }) {
     this.token = access_token;
-    const expiry = Date.now() + expires_in * 1000 - 60000;
+    const expiry = Date.now() + Number(expires_in || 3600) * 1000 - 60000;
     localStorage.setItem('spotify_token', access_token);
-    localStorage.setItem('spotify_refresh', refresh_token);
-    localStorage.setItem('spotify_expiry', expiry);
+
+    // Spotify refresh responses often omit refresh_token; keep the existing one.
+    if (refresh_token && refresh_token !== 'undefined' && refresh_token !== 'null') {
+      localStorage.setItem('spotify_refresh', refresh_token);
+    }
+
+    localStorage.setItem('spotify_expiry', String(expiry));
   }
 
   async _refreshToken() {
     const refresh = localStorage.getItem('spotify_refresh');
-    if (!refresh) return null;
+    if (!refresh || refresh === 'undefined' || refresh === 'null') {
+      localStorage.removeItem('spotify_refresh');
+      return null;
+    }
 
     const res = await fetch('https://accounts.spotify.com/api/token', {
       method: 'POST',
@@ -134,6 +142,40 @@ export class SpotifyManager {
     const data = await res.json();
     this._saveTokens(data);
     return data.access_token;
+  }
+
+  async _apiFetch(url, options = {}, retryOn401 = true) {
+    const token = await this.getValidToken();
+    if (!token) {
+      throw new Error('Spotify session expired. Reconnect Spotify.');
+    }
+
+    const headers = {
+      ...(options.headers || {}),
+      Authorization: `Bearer ${token}`,
+    };
+
+    let res = await fetch(url, {
+      ...options,
+      headers,
+    });
+
+    if (res.status === 401 && retryOn401) {
+      const refreshed = await this._refreshToken();
+      if (!refreshed) {
+        throw new Error('Spotify session expired. Reconnect Spotify.');
+      }
+
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          ...(options.headers || {}),
+          Authorization: `Bearer ${refreshed}`,
+        },
+      });
+    }
+
+    return res;
   }
 
   async getValidToken() {
@@ -385,7 +427,6 @@ export class SpotifyManager {
   // ── Queue / Recommendations ────────────────────────────────────
 
   async getRecommendations(seedGenres = ['chill', 'lo-fi'], limit = 5) {
-    const token = await this.getValidToken();
     const params = new URLSearchParams({
       seed_genres: seedGenres.join(','),
       limit,
@@ -394,19 +435,14 @@ export class SpotifyManager {
       target_instrumentalness: 0.7,
     });
 
-    const res = await fetch(`https://api.spotify.com/v1/recommendations?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await this._apiFetch(`https://api.spotify.com/v1/recommendations?${params}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.tracks || [];
   }
 
   async getQueue() {
-    const token = await this.getValidToken();
-    const res = await fetch('https://api.spotify.com/v1/me/player/queue', {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await this._apiFetch('https://api.spotify.com/v1/me/player/queue');
     if (!res.ok) return { queue: [] };
     return await res.json();
   }
@@ -425,48 +461,73 @@ export class SpotifyManager {
   }
 
   async getUserPlaylists(limit = 10) {
-    const token = await this.getValidToken();
-    const res = await fetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await this._apiFetch(`https://api.spotify.com/v1/me/playlists?limit=${limit}`);
     if (!res.ok) return [];
     const data = await res.json();
     return data.items || [];
   }
 
   async searchTracks(query, limit = 12) {
-    const token = await this.getValidToken();
-    if (!token) return [];
     const params = new URLSearchParams({
       q: query,
       type: 'track',
       limit: String(limit),
+      market: 'from_token',
     });
 
-    const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await this._apiFetch(`https://api.spotify.com/v1/search?${params}`);
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const message = res.status === 429 ? 'Spotify rate limit hit. Try again in a moment.' : 'Spotify search failed.';
+      throw new Error(message);
+    }
     const data = await res.json();
-    return data?.tracks?.items || [];
+    const items = data?.tracks?.items || [];
+    if (items.length > 0) {
+      return items;
+    }
+
+    // Fallback: retry without market filter to avoid false empty sets.
+    const fallbackParams = new URLSearchParams({
+      q: query,
+      type: 'track',
+      limit: String(limit),
+    });
+    const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
+    if (!fallbackRes.ok) return [];
+    const fallbackData = await fallbackRes.json();
+    return fallbackData?.tracks?.items || [];
   }
 
   async searchMixes(query, limit = 12) {
-    const token = await this.getValidToken();
-    if (!token) return [];
     const params = new URLSearchParams({
       q: `${query} mix`,
       type: 'playlist',
       limit: String(limit),
+      market: 'from_token',
     });
 
-    const res = await fetch(`https://api.spotify.com/v1/search?${params}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    const res = await this._apiFetch(`https://api.spotify.com/v1/search?${params}`);
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      const message = res.status === 429 ? 'Spotify rate limit hit. Try again in a moment.' : 'Spotify mixes search failed.';
+      throw new Error(message);
+    }
     const data = await res.json();
-    return data?.playlists?.items || [];
+    const items = data?.playlists?.items || [];
+    if (items.length > 0) {
+      return items;
+    }
+
+    // Fallback: broader playlist search without forcing "mix" suffix.
+    const fallbackParams = new URLSearchParams({
+      q: query,
+      type: 'playlist',
+      limit: String(limit),
+    });
+    const fallbackRes = await this._apiFetch(`https://api.spotify.com/v1/search?${fallbackParams}`);
+    if (!fallbackRes.ok) return [];
+    const fallbackData = await fallbackRes.json();
+    return fallbackData?.playlists?.items || [];
   }
 }

@@ -22,7 +22,6 @@ export const SCENES = [
     ambients: [
       { id: 'rain',    label: 'Rain',        icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
       { id: 'thunder', label: 'Thunder',     icon: '⛈️', defaultOn: false, defaultVol: 0.1 },
-      { id: 'indoor',  label: 'Indoors',     icon: '🏠', defaultOn: false, defaultVol: 0.1 },
     ],
   },
   {
@@ -32,7 +31,8 @@ export const SCENES = [
     emoji: '🚗',
     ambients: [
       { id: 'traffic', label: 'Traffic',     icon: '🚗', defaultOn: false, defaultVol: 0.1 },
-      { id: 'rain',    label: 'City Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'traffic_rain',    label: 'City Rain',   icon: '🌧️', defaultOn: false, defaultVol: 0.1 },
+      { id: 'traffic_thunder', label: 'Storm',       icon: '⚡', defaultOn: false, defaultVol: 0.1 },
       { id: 'city',    label: 'City Noise',  icon: '🏙️', defaultOn: false, defaultVol: 0.1 },
     ],
   },

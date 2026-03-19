@@ -174,6 +174,20 @@ export class AmbientEngine {
         break;
       }
 
+      case 'traffic_rain': {
+        const fileNodes = this._loopAudioFile('assets/sounds/traffic/dragon-studio-relaxing-rain-444802.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        const src = this._loopNoise(this._makeWhiteBuffer(2));
+        const bp = this._filter('bandpass', 3200, 0.4);
+        const lp = this._filter('lowpass', 6000, 0.7);
+        src.connect(bp); bp.connect(lp); lp.connect(gainNode);
+        addNodes(src, bp, lp);
+        break;
+      }
+
       case 'wind': {
         const src = this._loopNoise(this._makePinkBuffer(3));
         const lp = this._filter('lowpass', 450, 0.6);  // More subtle filtering
@@ -278,6 +292,16 @@ export class AmbientEngine {
 
       case 'thunder': {
         const fileNodes = this._loopAudioFile('assets/sounds/rain/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
+        if (fileNodes) {
+          addNodes(...fileNodes);
+          break;
+        }
+        this._scheduleThunder(gainNode, channel);
+        break;
+      }
+
+      case 'traffic_thunder': {
+        const fileNodes = this._loopAudioFile('assets/sounds/traffic/dragon-studio-dry-thunder-364468.mp3', gainNode, channel);
         if (fileNodes) {
           addNodes(...fileNodes);
           break;
