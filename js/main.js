@@ -1167,6 +1167,17 @@ async function connectSpotify() {
   DOM.btnConnect.textContent = 'Connecting...';
   DOM.btnConnect.disabled = true;
 
+  // Discord Activity can allow OAuth token usage while blocking Web Playback SDK device init.
+  // In that case we still treat Spotify as connected for API-backed features.
+  if (isDiscordActivity) {
+    DOM.npMini.style.display = 'none';
+    DOM.btnConnect.style.display = 'flex';
+    DOM.btnConnect.textContent = 'Disconnect Spotify';
+    DOM.btnConnect.disabled = false;
+    showToast('Spotify linked in Discord. Search works here; playback works best in web app.');
+    return;
+  }
+
   spotify.onReady = () => {
     DOM.btnConnect.style.display = 'none';
     DOM.npMini.style.display = 'flex';
@@ -1232,7 +1243,11 @@ function bindPlayerControls() {
       await spotify.togglePlay();
       maybePublishHostPlayback(true);
     } catch (err) {
-      showToast('Could not start playback');
+      if (isDiscordActivity) {
+        showToast('Spotify playback is limited in Discord Activity. Use web app for playback.');
+      } else {
+        showToast('Could not start playback');
+      }
       console.error('[Spotify] Play failed:', err);
     }
   });
