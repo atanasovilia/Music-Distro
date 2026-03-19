@@ -285,18 +285,18 @@ async function enqueueItemOrExpand(item, toTop = false) {
     tracks = await spotify.getPlaylistTracks(item.uri, 250);
   } catch (err) {
     const msg = String(err?.message || 'Could not load mix tracks');
-    if (msg.includes('403') || msg.toLowerCase().includes('forbidden')) {
-      const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
-      if (added) {
-        showToast('Spotify blocked track expansion. Mix queued directly.');
-      } else {
-        showToast('Spotify blocked this mix. Try another mix or reconnect Spotify.');
-      }
-      return { added, skipped: added ? 0 : 1 };
-    } else {
-      showToast(msg);
+    const added = enqueueTrack(item, toTop, { silentDuplicate: true }) ? 1 : 0;
+    if (added) {
+      showToast('Could not expand mix tracks. Mix queued directly.');
+      return { added: 1, skipped: 0 };
     }
-    return { added: 0, skipped: 0 };
+
+    if (msg.toLowerCase().includes('already')) {
+      showToast('Mix is already in queue');
+    } else {
+      showToast('Could not expand mix tracks for this result.');
+    }
+    return { added: 0, skipped: 1 };
   }
 
   if (!tracks.length) {
