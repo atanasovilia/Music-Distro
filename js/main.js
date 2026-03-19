@@ -1184,7 +1184,7 @@ if (!DOM.btnConnect) {
 async function handleSpotifyCallback() {
   const params = new URLSearchParams(window.location.search);
   const code = params.get('code');
-  const state = params.get('state');
+  const state = params.get('state') || '';
   const error = params.get('error');
 
   if (error) {
@@ -1201,6 +1201,8 @@ async function handleSpotifyCallback() {
 
   if (!code) return;
 
+  const isManualDiscordState = state.startsWith('v1m.');
+
   // If we're in popup, send code back to opener (Discord Activity main window)
   if (window.opener) {
     window.opener.postMessage({ type: 'spotify-auth-code', code, state }, '*');
@@ -1208,10 +1210,24 @@ async function handleSpotifyCallback() {
     return;
   }
 
-  window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+  // If a manual Discord auth link is opened in a regular browser, don't consume the code here.
+  // The Discord Activity needs this callback URL/code to complete token exchange.
+  if (isManualDiscordState && !isDiscordActivity) {
+    const callbackUrl = window.location.href;
+    const copied = await copyText(callbackUrl);
+    if (copied) {
+      showToast('Spotify approved. Return to Discord and paste the callback URL.');
+    }
+    window.prompt(
+      'Copy this callback URL and paste it into Discord Activity on the next Connect click:',
+      callbackUrl
+    );
+    return;
+  }
 
   try {
     await spotify.handleCallback(code, state);
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
     showToast('Spotify connected');
     await connectSpotify();
   } catch (err) {

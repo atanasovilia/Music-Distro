@@ -24,14 +24,15 @@ const PKCE_VERIFIER_KEY = 'pkce_verifier';
 const PKCE_STATE_LATEST_KEY = 'pkce_state_latest';
 const PKCE_VERIFIER_BY_STATE_PREFIX = 'pkce_verifier:';
 
-function buildOAuthState(verifier) {
+function buildOAuthState(verifier, manual = false) {
   const nonce = generateCodeVerifier(24);
-  return `v1.${nonce}.${verifier}`;
+  const prefix = manual ? 'v1m' : 'v1';
+  return `${prefix}.${nonce}.${verifier}`;
 }
 
 function extractVerifierFromState(state) {
   const value = String(state || '');
-  if (!value.startsWith('v1.')) return '';
+  if (!value.startsWith('v1.') && !value.startsWith('v1m.')) return '';
   const parts = value.split('.');
   if (parts.length < 3) return '';
   const verifier = parts.slice(2).join('.').trim();
@@ -110,7 +111,7 @@ export class SpotifyManager {
 
     const verifier = generateCodeVerifier();
     const challenge = await generateCodeChallenge(verifier);
-    const state = buildOAuthState(verifier);
+    const state = buildOAuthState(verifier, forceManual);
     // Persist verifier by OAuth state so retries do not mismatch code_verifier.
     localStorage.setItem(`${PKCE_VERIFIER_BY_STATE_PREFIX}${state}`, verifier);
     localStorage.setItem(PKCE_STATE_LATEST_KEY, state);
