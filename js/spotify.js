@@ -235,11 +235,17 @@ export class SpotifyManager {
   _sanitizeLimit(limit, fallback = 12) {
     const parsed = Number.parseInt(String(limit), 10);
     if (!Number.isFinite(parsed)) return fallback;
+    return Math.min(50, Math.max(1, parsed));
+  }
+
+  _sanitizeTargetCount(limit, fallback = 12) {
+    const parsed = Number.parseInt(String(limit), 10);
+    if (!Number.isFinite(parsed)) return fallback;
     return Math.min(200, Math.max(1, parsed));
   }
 
   async _searchPaged(query, type, targetCount, fallbackMessage, options = {}) {
-    const hardLimit = Math.min(200, Math.max(1, Number.parseInt(String(targetCount), 10) || 12));
+    const hardLimit = this._sanitizeTargetCount(targetCount, 12);
     const pageSize = 50;
     const includeMarket = options.includeMarket !== false;
     const seen = new Set();
@@ -691,7 +697,7 @@ export class SpotifyManager {
   }
 
   async searchTracks(query, limit = 12) {
-    const safeLimit = this._sanitizeLimit(limit, 12);
+    const safeLimit = this._sanitizeTargetCount(limit, 12);
     const primary = await this._searchPaged(query, 'track', safeLimit, 'Spotify song search failed', { includeMarket: true });
     if (primary.length >= Math.min(safeLimit, 10)) return primary;
 
@@ -711,7 +717,7 @@ export class SpotifyManager {
   }
 
   async searchMixes(query, limit = 12) {
-    const safeLimit = this._sanitizeLimit(limit, 12);
+    const safeLimit = this._sanitizeTargetCount(limit, 12);
     const primary = await this._searchPaged(`${query} mix`, 'playlist', safeLimit, 'Spotify mixes search failed', { includeMarket: true });
     if (primary.length >= Math.min(safeLimit, 10)) return primary;
 
