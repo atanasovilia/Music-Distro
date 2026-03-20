@@ -387,14 +387,17 @@ function initLofiRadio() {
     updatePlayBtn(true);
     DOM.npMiniText.textContent = truncate(station.name, 22);
     DOM.npMini.style.display = 'flex';
-    publishRadioPlayback(station, true);
+    if (isJamHost) {
+      maybePublishHostPlayback(true);
+    }
   });
 
   lofiRadioAudio.addEventListener('pause', () => {
     if (spotifyLinked) return;
     updatePlayBtn(false);
-    const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
-    if (station) publishRadioPlayback(station, false);
+    if (isJamHost) {
+      maybePublishHostPlayback(true);
+    }
   });
 
   lofiRadioAudio.addEventListener('error', () => {
@@ -498,24 +501,10 @@ async function playLofiStation(index) {
 
   updateTrackUIWithRadio(station);
   updateLofiRadioTransportUI();
-  publishRadioPlayback(station, true);
+  if (isJamHost) {
+    maybePublishHostPlayback(true);
+  }
   showToast(`Now playing: ${truncate(station.name, 22)}`);
-}
-
-function publishRadioPlayback(station, isPlaying = true) {
-  if (!station || isJamHost) return;
-  if (!jamState) return;
-
-  jam.publishPlayback({
-    trackUri: `lofi-radio:${station.id}`,
-    trackName: station.name,
-    artist: 'Live Radio Stream',
-    isPlaying,
-    positionMs: 0,
-    durationMs: 0,
-  }).catch(err => {
-    console.warn('[Jam] Radio broadcast failed:', err?.message || err);
-  });
 }
 
 async function tryStartRadioStream(url) {
@@ -1110,7 +1099,11 @@ async function onJamState(state) {
   updateVoteFooter();
 
   const pb = state?.playback;
-  if (!pb || isJamHost || !spotify.isLoggedIn()) return;
+  if (!pb || isJamHost) return;
+
+  // Allow sync for spotify users OR radio playback
+  const isRadio = pb.trackUri?.startsWith('lofi-radio:');
+  if (!isRadio && !spotify.isLoggedIn()) return;
 
   const remoteStamp = Number(pb.startedAt || state?.updatedAt || Date.now());
   if (remoteStamp <= lastRemotePlaybackStamp) return;
