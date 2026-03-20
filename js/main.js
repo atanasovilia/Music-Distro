@@ -1253,6 +1253,8 @@ async function connectSpotify() {
   }
 
   spotify.onReady = () => {
+    const musicVol = DOM.musicVolume ? (DOM.musicVolume.value / 100) : 0.1;
+    spotify.setVolume(musicVol);
     DOM.btnConnect.style.display = 'none';
     DOM.npMini.style.display = 'flex';
     DOM.btnConnect.disabled = false;
@@ -1363,15 +1365,34 @@ function bindPlayerControls() {
 }
 
 function bindVolumeControls() {
-  DOM.musicVolume?.addEventListener('input', () => {
+  const applyMusicVolume = () => {
+    if (!DOM.musicVolume) return;
     const v = DOM.musicVolume.value / 100;
     spotify.setVolume(v);
+  };
+
+  const applyAmbientVolume = () => {
+    if (!DOM.ambientVolume) return;
+    const v = DOM.ambientVolume.value / 100;
+    // Ensure ambient engine exists so volume changes are not dropped before playback starts.
+    if (!ambient._ready) {
+      ambient.init();
+      ambient.resume();
+    }
+    ambient.setMasterVolume(v);
+  };
+
+  DOM.musicVolume?.addEventListener('input', () => {
+    applyMusicVolume();
   });
 
   DOM.ambientVolume?.addEventListener('input', () => {
-    const v = DOM.ambientVolume.value / 100;
-    ambient.setMasterVolume(v);
+    applyAmbientVolume();
   });
+
+  // Apply initial UI slider values on startup.
+  applyMusicVolume();
+  applyAmbientVolume();
 }
 
 function enableDiscordJamMode() {
