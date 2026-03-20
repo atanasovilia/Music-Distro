@@ -293,6 +293,31 @@ body.hud-minimal .hud-restore-dash {
   background: rgba(255,255,255,0.04);
 }
 
+.nickname-input {
+  flex: 1;
+  min-width: 80px;
+  max-width: 140px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-family: 'Syne', sans-serif;
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
+  border-radius: 6px;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.nickname-input::placeholder {
+  color: var(--text-muted);
+}
+
+.nickname-input:focus {
+  background: rgba(255,255,255,0.12);
+  border-color: var(--accent);
+  box-shadow: 0 0 8px var(--glow);
+}
+
 .jam-host-btn {
   margin-left: auto;
   border: 1px solid var(--glass-border);

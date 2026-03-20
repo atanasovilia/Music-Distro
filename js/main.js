@@ -186,6 +186,7 @@ const DOM = {
   voteOptions: $('vote-options'),
   voteFooter: $('vote-footer'),
   roomChip: $('room-chip'),
+  nicknameInput: $('nickname-input'),
   btnShareRoom: $('btn-share-room'),
   btnJamHost: $('btn-jam-host'),
   jamSearchInput: $('jam-search-input'),
@@ -297,6 +298,16 @@ async function initJamRoom() {
 
 function bindJamControls() {
   setJamSearchMode('songs');
+
+  // Nickname input handler
+  DOM.nicknameInput?.addEventListener('change', (e) => {
+    const nick = e.target.value.trim().slice(0, 20);
+    if (nick) {
+      localStorage.setItem('jamUserNickname', nick);
+      jamUserName = nick;
+      showToast(`Nickname set to "${nick}"`);
+    }
+  });
 
   DOM.btnSearchSongs?.addEventListener('click', () => setJamSearchMode('songs'));
   DOM.btnSearchMixes?.addEventListener('click', () => setJamSearchMode('mixes'));
@@ -1095,6 +1106,11 @@ async function onJamState(state) {
 
   DOM.btnJamHost.textContent = isJamHost ? 'Release Host' : (state?.hostName ? `Host: ${state.hostName}` : 'Become Host');
 
+  // Populate nickname input if not already set
+  if (DOM.nicknameInput && !DOM.nicknameInput.value) {
+    DOM.nicknameInput.value = jamUserName || '';
+  }
+
   renderSuggestionList(state?.suggestions || []);
   updateVoteFooter();
 
@@ -1889,6 +1905,8 @@ function getOrCreateJamUserId() {
 }
 
 function getJamDisplayName() {
+  const customNick = localStorage.getItem('jamUserNickname');
+  if (customNick) return customNick;
   const base = discord.currentUser?.global_name || discord.currentUser?.username || 'Guest';
   return String(base).slice(0, 20);
 }
