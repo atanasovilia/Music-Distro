@@ -1248,7 +1248,7 @@ function maybePublishHostPlayback(force = false) {
 }
 
 function syncHostPlaybackLoop() {
-  const shouldRun = isJamHost && spotify.isLoggedIn();
+  const shouldRun = isJamHost && (spotifyLinked || !lofiRadioAudio.paused);
 
   if (!shouldRun) {
     clearInterval(hostPublishTimer);
