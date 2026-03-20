@@ -1279,9 +1279,15 @@ async function applyRemotePlayback(pb) {
       const stationIndex = LOFI_RADIO_STATIONS.findIndex(s => s.id === stationId);
       if (stationIndex >= 0) {
         if (!spotifyLinked) {
-          await playLofiStation(stationIndex);
-          if (!pb.isPlaying) {
-            stopLofiRadio();
+          // Only restart if switching stations or need to start
+          const isSameStation = lofiRadioStationIndex === stationIndex;
+          if (!isSameStation || lofiRadioAudio.paused !== !pb.isPlaying) {
+            await playLofiStation(stationIndex);
+            if (!pb.isPlaying) {
+              stopLofiRadio();
+            } else if (lofiRadioAudio.paused) {
+              lofiRadioAudio.play().catch(() => {});
+            }
           }
         }
         updateVoteFooter();
