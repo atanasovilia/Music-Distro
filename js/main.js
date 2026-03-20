@@ -261,6 +261,7 @@ async function init() {
 
   isDiscordActivity = await discord.init();
   jamUserName = getJamDisplayName();
+  setJamNickname(jamUserName);
   setupAmbientJamAutostart();
 
   if (isDiscordActivity || discord.isEmbeddedClient()) {
@@ -300,13 +301,20 @@ function bindJamControls() {
   setJamSearchMode('songs');
 
   // Nickname input handler
-  DOM.nicknameInput?.addEventListener('change', (e) => {
-    const nick = e.target.value.trim().slice(0, 20);
-    if (nick) {
-      localStorage.setItem('jamUserNickname', nick);
-      jamUserName = nick;
-      showToast(`Nickname set to "${nick}"`);
+  DOM.nicknameInput?.addEventListener('change', async (e) => {
+    const nick = setJamNickname(e.target.value);
+    if (!nick) return;
+
+    // If already host, re-apply host so room state gets the updated hostName.
+    if (isJamHost) {
+      try {
+        await jam.becomeHost();
+      } catch {
+        // Keep local nickname even if sync call fails.
+      }
     }
+
+    showToast(`Nickname set to "${nick}"`);
   });
 
   DOM.btnSearchSongs?.addEventListener('click', () => setJamSearchMode('songs'));
@@ -329,6 +337,8 @@ function bindJamControls() {
         await jam.releaseHost();
         showToast('Released host role');
       } else {
+        const chosenName = DOM.nicknameInput?.value || jamUserName || getJamDisplayName();
+        setJamNickname(chosenName);
         await jam.becomeHost();
         const copied = await copyText(getRoomShareUrl());
         showToast(copied ? 'You are host. Room link copied.' : 'You are now the jam host');
@@ -1871,7 +1881,8 @@ function resetPlayer() {
 function updateVoteFooter() {
   const n = discord.getParticipantCount();
   const suggestionCount = jamState?.suggestions?.length || 0;
-  const hostLine = jamState?.hostName ? `host: ${jamState.hostName}` : 'no host';
+  const resolvedHostName = jamState?.hostName || (jamState?.hostId === jamUserId ? jamUserName : '');
+  const hostLine = resolvedHostName ? `host: ${resolvedHostName}` : 'no host';
   DOM.voteFooter.textContent = `${n} listening · ${suggestionCount} suggestions · ${hostLine}`;
 }
 
@@ -1909,6 +1920,21 @@ function getJamDisplayName() {
   if (customNick) return customNick;
   const base = discord.currentUser?.global_name || discord.currentUser?.username || 'Guest';
   return String(base).slice(0, 20);
+}
+
+function setJamNickname(value) {
+  const nick = String(value || '').trim().slice(0, 20);
+  if (!nick) return '';
+
+  localStorage.setItem('jamUserNickname', nick);
+  jamUserName = nick;
+  jam.userName = nick;
+
+  if (DOM.nicknameInput && DOM.nicknameInput.value !== nick) {
+    DOM.nicknameInput.value = nick;
+  }
+
+  return nick;
 }
 
 function setJamSearchMode(mode) {
