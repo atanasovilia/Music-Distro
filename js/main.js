@@ -36,31 +36,46 @@ const LOFI_RADIO_STATIONS = [
   {
     id: 'lofigirl',
     name: 'Lofi Girl - the classic',
-    streamUrl: 'https://play.streamafrica.net/lofiradio',
+    streamUrls: [
+      'https://play.streamafrica.net/lofiradio',
+      'https://ice2.somafm.com/groovesalad-128-mp3',
+    ],
     fallbackUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
   },
   {
     id: 'chillhop',
     name: 'Chillhop Music',
-    streamUrl: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
+    streamUrls: [
+      'https://stream.zeno.fm/f3wvbbqmdg8uv',
+      'https://ice2.somafm.com/beatblender-128-mp3',
+    ],
     fallbackUrl: 'https://www.youtube.com/@ChillhopMusic',
   },
   {
     id: 'college',
     name: 'College Music',
-    streamUrl: 'https://stream.zeno.fm/0r0xa792kwzuv',
+    streamUrls: [
+      'https://stream.zeno.fm/0r0xa792kwzuv',
+      'https://ice2.somafm.com/indiepop-128-mp3',
+    ],
     fallbackUrl: 'https://www.youtube.com/@CollegeMusic',
   },
   {
     id: 'beats',
     name: 'Lofi Hip Hop beats',
-    streamUrl: 'https://ice4.somafm.com/groovesalad-128-mp3',
+    streamUrls: [
+      'https://ice4.somafm.com/groovesalad-128-mp3',
+      'https://ice2.somafm.com/beatblender-128-mp3',
+    ],
     fallbackUrl: 'https://www.youtube.com/results?search_query=lofi+hip+hop+beats+live',
   },
   {
     id: 'jazzhop',
     name: 'Jazz Hop Cafe',
-    streamUrl: 'https://ice2.somafm.com/illstreet-128-mp3',
+    streamUrls: [
+      'https://ice2.somafm.com/illstreet-128-mp3',
+      'https://ice2.somafm.com/fluid-128-mp3',
+    ],
     fallbackUrl: 'https://www.youtube.com/results?search_query=jazz+hop+cafe+live',
   },
 ];
@@ -189,6 +204,8 @@ lofiRadioAudio.preload = 'none';
 
 let lofiRadioStationIndex = 0;
 let lofiRadioAutoSwitchGuard = false;
+let lofiRadioCurrentStreamUrl = '';
+let spotifyLinked = false;
 
 async function init() {
   restorePendingSpotifyManualAuth();
@@ -243,7 +260,7 @@ async function init() {
   await initJamRoom();
 
   if (spotify.isLoggedIn()) {
-    await connectSpotify();
+    showToast('Spotify session found. Click Connect Spotify when you want it.');
   }
 }
 
@@ -335,6 +352,10 @@ function initLofiRadio() {
 
   if (isDiscordActivity || discord.isEmbeddedClient()) {
     DOM.lofiRadio?.classList.add('discord-limited');
+    const subtitleEl = DOM.lofiRadio?.querySelector('.lofi-radio-subtitle');
+    if (subtitleEl) {
+      subtitleEl.textContent = 'Discord Activity blocks external live radio streams';
+    }
     if (DOM.btnOpenWebRadio) {
       DOM.btnOpenWebRadio.style.display = 'inline-flex';
       DOM.btnOpenWebRadio.addEventListener('click', async () => {
@@ -349,7 +370,7 @@ function initLofiRadio() {
   renderLofiRadioStations();
 
   lofiRadioAudio.addEventListener('play', () => {
-    if (spotify.isLoggedIn()) return;
+    if (spotifyLinked) return;
     const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
     if (!station) return;
     updateTrackUIWithRadio(station);
@@ -359,16 +380,16 @@ function initLofiRadio() {
   });
 
   lofiRadioAudio.addEventListener('pause', () => {
-    if (spotify.isLoggedIn()) return;
+    if (spotifyLinked) return;
     updatePlayBtn(false);
   });
 
   lofiRadioAudio.addEventListener('error', () => {
-    if (spotify.isLoggedIn()) return;
+    if (spotifyLinked) return;
     if (lofiRadioAutoSwitchGuard) return;
 
     lofiRadioAutoSwitchGuard = true;
-    showToast('Radio stream unavailable. Switching station...');
+    showToast('Station dropped. Switching...');
     const nextIndex = (lofiRadioStationIndex + 1) % LOFI_RADIO_STATIONS.length;
     playLofiStation(nextIndex).catch(() => {
       const fallback = LOFI_RADIO_STATIONS[lofiRadioStationIndex]?.fallbackUrl;
@@ -393,10 +414,12 @@ function renderLofiRadioStations() {
     btn.className = 'lofi-radio-btn';
     btn.textContent = station.name;
     btn.classList.toggle('active', index === lofiRadioStationIndex);
-    btn.addEventListener('click', () => {
-      playLofiStation(index).catch(() => {
-        showToast('Could not start this station');
-      });
+    btn.addEventListener('click', async () => {
+      try {
+        await playLofiStation(index);
+      } catch (err) {
+        showToast(err?.message || 'Could not load station');
+      }
     });
     DOM.lofiRadioList.appendChild(btn);
   });
@@ -417,7 +440,7 @@ async function playLofiStation(index) {
   lofiRadioStationIndex = index;
   renderLofiRadioStations();
 
-  if (spotify.isLoggedIn()) {
+  if (spotifyLinked) {
     showToast('Disconnect Spotify to use The LO-FI Radio');
     return;
   }
@@ -430,16 +453,86 @@ async function playLofiStation(index) {
     return;
   }
 
-  if (lofiRadioAudio.src !== station.streamUrl) {
-    lofiRadioAudio.src = station.streamUrl;
+  const candidates = Array.isArray(station.streamUrls)
+    ? station.streamUrls.filter(Boolean)
+    : (station.streamUrl ? [station.streamUrl] : []);
+
+  if (!candidates.length) {
+    throw new Error('No stream configured for this station');
   }
 
-  lofiRadioAudio.volume = (DOM.musicVolume?.value || 10) / 100;
-  await lofiRadioAudio.play();
+  let started = false;
+  for (const url of candidates) {
+    try {
+      await tryStartRadioStream(url);
+      lofiRadioCurrentStreamUrl = url;
+      started = true;
+      break;
+    } catch {
+      // Try next backup stream.
+    }
+  }
+
+  if (!started) {
+    const fallback = station.fallbackUrl;
+    if (fallback) {
+      const copied = await copyText(fallback);
+      window.open(fallback, '_blank', 'noopener');
+      throw new Error(copied ? 'Could not load station. Opened fallback and copied link.' : 'Could not load station. Opened fallback link.');
+    }
+    throw new Error('Could not load station');
+  }
 
   updateTrackUIWithRadio(station);
   updateLofiRadioTransportUI();
   showToast(`Now playing: ${truncate(station.name, 22)}`);
+}
+
+async function tryStartRadioStream(url) {
+  return new Promise(async (resolve, reject) => {
+    let timeoutId;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      lofiRadioAudio.removeEventListener('playing', onReady);
+      lofiRadioAudio.removeEventListener('canplay', onReady);
+      lofiRadioAudio.removeEventListener('error', onFail);
+      lofiRadioAudio.removeEventListener('stalled', onFail);
+      lofiRadioAudio.removeEventListener('abort', onFail);
+    };
+
+    const onReady = () => {
+      cleanup();
+      resolve();
+    };
+
+    const onFail = () => {
+      cleanup();
+      reject(new Error('Stream failed'));
+    };
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      reject(new Error('Stream timed out'));
+    }, 8000);
+
+    lofiRadioAudio.addEventListener('playing', onReady, { once: true });
+    lofiRadioAudio.addEventListener('canplay', onReady, { once: true });
+    lofiRadioAudio.addEventListener('error', onFail, { once: true });
+    lofiRadioAudio.addEventListener('stalled', onFail, { once: true });
+    lofiRadioAudio.addEventListener('abort', onFail, { once: true });
+
+    try {
+      lofiRadioAudio.pause();
+      lofiRadioAudio.src = url;
+      lofiRadioAudio.volume = (DOM.musicVolume?.value || 10) / 100;
+      lofiRadioAudio.load();
+      await lofiRadioAudio.play();
+    } catch {
+      cleanup();
+      reject(new Error('Play blocked'));
+    }
+  });
 }
 
 function updateTrackUIWithRadio(station) {
@@ -449,7 +542,7 @@ function updateTrackUIWithRadio(station) {
 }
 
 function updateLofiRadioTransportUI() {
-  if (spotify.isLoggedIn()) return;
+  if (spotifyLinked) return;
   DOM.progressFill.style.width = '100%';
   DOM.timeCurrent.textContent = 'LIVE';
   DOM.timeTotal.textContent = 'LIVE';
@@ -1311,8 +1404,9 @@ if (!DOM.btnConnect) {
   console.error('[UI] Connect button not found in DOM!');
 } else {
   DOM.btnConnect.addEventListener('click', async () => {
-    if (spotify.isLoggedIn()) {
+    if (spotifyLinked) {
       spotify.logout();
+      spotifyLinked = false;
       syncHostPlaybackLoop();
       DOM.btnConnect.textContent = 'Connect Spotify';
       DOM.npMini.style.display = lofiRadioAudio.paused ? 'none' : 'flex';
@@ -1321,6 +1415,11 @@ if (!DOM.btnConnect) {
       showToast('Disconnected from Spotify');
     } else {
       try {
+        if (spotify.isLoggedIn()) {
+          await connectSpotify();
+          return;
+        }
+
         if (pendingSpotifyManualAuthUrl) {
           await runManualSpotifyAuthFlow();
           return;
@@ -1413,6 +1512,7 @@ async function connectSpotify() {
   // Discord Activity can allow OAuth token usage while blocking Web Playback SDK device init.
   // In that case we still treat Spotify as connected for API-backed features.
   if (isDiscordActivity) {
+    spotifyLinked = true;
     DOM.npMini.style.display = 'none';
     DOM.btnConnect.style.display = 'flex';
     DOM.btnConnect.textContent = 'Disconnect Spotify';
@@ -1422,6 +1522,7 @@ async function connectSpotify() {
   }
 
   spotify.onReady = () => {
+    spotifyLinked = true;
     const musicVol = DOM.musicVolume ? (DOM.musicVolume.value / 100) : 0.1;
     spotify.setVolume(musicVol);
     DOM.btnConnect.style.display = 'none';
@@ -1456,6 +1557,7 @@ async function connectSpotify() {
   };
 
   spotify.onError = msg => {
+    spotifyLinked = false;
     syncHostPlaybackLoop();
     showToast('Spotify: ' + msg);
     DOM.btnConnect.style.display = 'flex';
@@ -1466,6 +1568,7 @@ async function connectSpotify() {
   try {
     await spotify.initPlayer();
   } catch {
+    spotifyLinked = false;
     syncHostPlaybackLoop();
     DOM.btnConnect.style.display = 'flex';
     DOM.btnConnect.textContent = 'Connect Spotify';
@@ -1478,7 +1581,7 @@ function bindPlayerControls() {
     ambient.init();
     ambient.resume();
 
-    if (!spotify.isLoggedIn()) {
+    if (!spotifyLinked) {
       startAmbientJam();
       const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
       if (lofiRadioAudio.paused) {
@@ -1507,7 +1610,7 @@ function bindPlayerControls() {
   });
 
   DOM.btnPrev.addEventListener('click', async () => {
-    if (!spotify.isLoggedIn()) {
+    if (!spotifyLinked) {
       const prevIndex = (lofiRadioStationIndex - 1 + LOFI_RADIO_STATIONS.length) % LOFI_RADIO_STATIONS.length;
       await playLofiStation(prevIndex);
       return;
@@ -1517,7 +1620,7 @@ function bindPlayerControls() {
   });
 
   DOM.btnNext.addEventListener('click', async () => {
-    if (!spotify.isLoggedIn()) {
+    if (!spotifyLinked) {
       const nextIndex = (lofiRadioStationIndex + 1) % LOFI_RADIO_STATIONS.length;
       await playLofiStation(nextIndex);
       return;
@@ -1533,7 +1636,7 @@ function bindPlayerControls() {
   });
 
   DOM.progressTrack.addEventListener('click', async e => {
-    if (!spotify.isLoggedIn()) {
+    if (!spotifyLinked) {
       updateLofiRadioTransportUI();
       return;
     }
@@ -1581,7 +1684,7 @@ function bindVolumeControls() {
 
 function enableDiscordJamMode() {
   DOM.btnConnect.textContent = 'Spotify (Optional)';
-  if (!spotify.isLoggedIn()) {
+  if (!spotifyLinked) {
     DOM.voteOptions.innerHTML = '<div class="vote-empty">Ambient jam is live. Spotify is optional.</div>';
   }
   updateVoteFooter();
@@ -1651,7 +1754,7 @@ function updateProgress(pos, dur) {
 }
 
 function resetPlayer() {
-  if (!spotify.isLoggedIn()) {
+  if (!spotifyLinked) {
     DOM.trackName.textContent = 'The LO-FI Radio';
     DOM.trackArtist.textContent = 'Pick a station or connect Spotify';
   } else {
@@ -1664,7 +1767,7 @@ function resetPlayer() {
   DOM.timeTotal.textContent = '0:00';
   updatePlayBtn(false);
 
-  if (!spotify.isLoggedIn()) {
+  if (!spotifyLinked) {
     updateLofiRadioTransportUI();
   }
 }
