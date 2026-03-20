@@ -391,8 +391,7 @@ function initLofiRadio() {
       DOM.btnOpenWebRadio.addEventListener('click', async () => {
         const url = getRoomShareUrlForBase(window.__APP_BASE_URL__ || window.location.origin);
         const copied = await copyText(url);
-        window.open(url, '_blank', 'noopener');
-        showToast(copied ? 'Web player opened. Link copied.' : 'Web player opened');
+        showToast(copied ? 'Web player link copied.' : 'Could not copy web player link.');
       });
     }
   }
@@ -427,12 +426,7 @@ function initLofiRadio() {
     lofiRadioAutoSwitchGuard = true;
     showToast('Station dropped. Switching...');
     const nextIndex = (lofiRadioStationIndex + 1) % LOFI_RADIO_STATIONS.length;
-    playLofiStation(nextIndex).catch(() => {
-      const fallback = LOFI_RADIO_STATIONS[lofiRadioStationIndex]?.fallbackUrl;
-      if (fallback) {
-        window.open(fallback, '_blank', 'noopener');
-      }
-    }).finally(() => {
+    playLofiStation(nextIndex, { allowExternalOpen: false }).catch(() => {}).finally(() => {
       setTimeout(() => { lofiRadioAutoSwitchGuard = false; }, 1200);
     });
   });
@@ -469,7 +463,8 @@ function stopLofiRadio() {
   }
 }
 
-async function playLofiStation(index) {
+async function playLofiStation(index, options = {}) {
+  void options;
   const station = LOFI_RADIO_STATIONS[index];
   if (!station) return;
 
@@ -484,8 +479,7 @@ async function playLofiStation(index) {
   if (isDiscordActivity || discord.isEmbeddedClient()) {
     const url = getRoomShareUrlForBase(window.__APP_BASE_URL__ || window.location.origin);
     const copied = await copyText(url);
-    window.open(url, '_blank', 'noopener');
-    showToast(copied ? 'Discord blocks these live streams. Opened web player and copied link.' : 'Discord blocks these live streams. Opened web player.');
+    showToast(copied ? 'Discord blocks these streams. Web player link copied.' : 'Discord blocks these streams. Could not copy web player link.');
     return;
   }
 
@@ -513,8 +507,7 @@ async function playLofiStation(index) {
     const fallback = station.fallbackUrl;
     if (fallback) {
       const copied = await copyText(fallback);
-      window.open(fallback, '_blank', 'noopener');
-      throw new Error(copied ? 'Could not load station. Opened fallback and copied link.' : 'Could not load station. Opened fallback link.');
+      throw new Error(copied ? 'Could not load station. Fallback link copied.' : 'Could not load station. Fallback available in station list.');
     }
     throw new Error('Could not load station');
   }
@@ -1307,7 +1300,7 @@ async function applyRemotePlayback(pb) {
           // Only restart if switching stations or need to start
           const isSameStation = lofiRadioStationIndex === stationIndex;
           if (!isSameStation || lofiRadioAudio.paused !== !pb.isPlaying) {
-            await playLofiStation(stationIndex);
+            await playLofiStation(stationIndex, { allowExternalOpen: false });
             if (!pb.isPlaying) {
               stopLofiRadio();
             } else if (lofiRadioAudio.paused) {
