@@ -123,7 +123,8 @@ const DOM = {
   progressTrack: $('progress-track'),
   timeCurrent: $('time-current'),
   timeTotal: $('time-total'),
-  masterVolume: $('master-volume'),
+  musicVolume: $('music-volume'),
+  ambientVolume: $('ambient-volume'),
   voteLabel: $('vote-label'),
   voteOptions: $('vote-options'),
   voteFooter: $('vote-footer'),
@@ -1362,9 +1363,13 @@ function bindPlayerControls() {
 }
 
 function bindVolumeControls() {
-  DOM.masterVolume.addEventListener('input', () => {
-    const v = DOM.masterVolume.value / 100;
+  DOM.musicVolume?.addEventListener('input', () => {
+    const v = DOM.musicVolume.value / 100;
     spotify.setVolume(v);
+  });
+
+  DOM.ambientVolume?.addEventListener('input', () => {
+    const v = DOM.ambientVolume.value / 100;
     ambient.setMasterVolume(v);
   });
 }
