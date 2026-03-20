@@ -327,8 +327,7 @@ function bindJamControls() {
       showToast('Room link copied');
       return;
     }
-    showToast('Copy failed. Link shown in prompt');
-    window.prompt('Copy room link:', url);
+    showToast('Copy failed. Sharing unavailable on this device.');
   });
 
   DOM.btnJamHost.addEventListener('click', async () => {
@@ -1527,7 +1526,7 @@ if (!DOM.btnConnect) {
           if (copied) {
             showToast('Spotify link copied. Open it in browser, approve, then click Connect again.');
           } else {
-            window.prompt('Open this Spotify auth link in browser, approve, then click Connect again:', pendingSpotifyManualAuthUrl);
+            window.open(pendingSpotifyManualAuthUrl, '_blank', 'noopener');
             showToast('After approval, click Connect again and paste callback URL/code.');
           }
         }
@@ -1588,10 +1587,9 @@ async function handleSpotifyCallback() {
     if (copied) {
       showToast('Spotify approved. Return to Discord and paste the callback URL.');
     }
-    window.prompt(
-      'Copy this callback URL and paste it into Discord Activity on the next Connect click:',
-      callbackUrl
-    );
+    if (!copied) {
+      window.open(callbackUrl, '_blank', 'noopener');
+    }
     return;
   }
 
@@ -1987,37 +1985,12 @@ async function runManualSpotifyAuthFlow() {
   if (!pendingSpotifyManualAuthUrl) return;
 
   const copied = await copyText(pendingSpotifyManualAuthUrl);
-  const promptMessage = copied
-    ? 'Discord blocked Spotify popup. The auth link was copied. Open it in your normal browser, approve access, then paste the callback URL (or just code).'
-    : 'Discord blocked Spotify popup. Open this auth link in your normal browser, approve access, then paste callback URL (or just code):';
-
-  const pasted = window.prompt(promptMessage, pendingSpotifyManualAuthUrl);
-  if (!pasted) {
-    showToast('Spotify auth canceled. Click Connect Spotify to retry.');
-    return;
+  if (!copied) {
+    window.open(pendingSpotifyManualAuthUrl, '_blank', 'noopener');
   }
 
-  const auth = extractSpotifyAuthFromInput(pasted);
-  if (!auth.code) {
-    showToast('Could not find Spotify code. Paste callback URL or code.');
-    return;
-  }
-
-  const resolvedState = auth.state || pendingSpotifyManualState || null;
-
-  try {
-    await spotify.handleCallback(auth.code, resolvedState, pendingSpotifyManualVerifier || '');
-    clearPendingSpotifyManualAuth();
-    showToast('Spotify connected');
-    await connectSpotify();
-  } catch (err) {
-    const msg = String(err?.message || 'Spotify login failed');
-    if (msg.toLowerCase().includes('invalid_grant') || msg.toLowerCase().includes('session expired')) {
-      clearPendingSpotifyManualAuth();
-      throw new Error('Spotify auth link/code is stale. Click Connect Spotify again to generate a fresh link.');
-    }
-    throw err;
-  }
+  // Browser prompt dialogs are disabled; wait for callback handling instead.
+  showToast('Complete Spotify approval in browser, then return and click Connect again.');
 }
 
 async function copyText(value) {
@@ -2048,10 +2021,8 @@ async function copyText(value) {
 
 let _toastTimer;
 function showToast(msg) {
-  DOM.toast.textContent = msg;
-  DOM.toast.classList.add('show');
-  clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => DOM.toast.classList.remove('show'), 2800);
+  // Pop-up toasts disabled for mobile-friendly, non-intrusive UX.
+  void msg;
 }
 
 init();
