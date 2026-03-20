@@ -391,6 +391,14 @@ body.hud-minimal .hud-restore-dash {
   color: var(--accent);
 }
 
+.lofi-radio.discord-limited .lofi-radio-subtitle {
+  color: #ffd166;
+}
+
+.lofi-radio.discord-limited .lofi-radio-btn {
+  opacity: 0.75;
+}
+
 .jam-search {
   display: flex;
   gap: 8px;

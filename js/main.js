@@ -177,6 +177,7 @@ const DOM = {
   jamSearchResults: $('jam-search-results'),
   lofiRadio: $('lofi-radio'),
   lofiRadioList: $('lofi-radio-list'),
+  btnOpenWebRadio: $('btn-open-web-radio'),
   queueList: $('queue-list'),
   queueCount: $('queue-count'),
   btnQueueClear: $('btn-queue-clear'),
@@ -332,6 +333,19 @@ function bindSearchModalControls() {
 function initLofiRadio() {
   if (!DOM.lofiRadioList) return;
 
+  if (isDiscordActivity || discord.isEmbeddedClient()) {
+    DOM.lofiRadio?.classList.add('discord-limited');
+    if (DOM.btnOpenWebRadio) {
+      DOM.btnOpenWebRadio.style.display = 'inline-flex';
+      DOM.btnOpenWebRadio.addEventListener('click', async () => {
+        const url = getRoomShareUrlForBase(window.__APP_BASE_URL__ || window.location.origin);
+        const copied = await copyText(url);
+        window.open(url, '_blank', 'noopener');
+        showToast(copied ? 'Web player opened. Link copied.' : 'Web player opened');
+      });
+    }
+  }
+
   renderLofiRadioStations();
 
   lofiRadioAudio.addEventListener('play', () => {
@@ -405,6 +419,14 @@ async function playLofiStation(index) {
 
   if (spotify.isLoggedIn()) {
     showToast('Disconnect Spotify to use The LO-FI Radio');
+    return;
+  }
+
+  if (isDiscordActivity || discord.isEmbeddedClient()) {
+    const url = getRoomShareUrlForBase(window.__APP_BASE_URL__ || window.location.origin);
+    const copied = await copyText(url);
+    window.open(url, '_blank', 'noopener');
+    showToast(copied ? 'Discord blocks these live streams. Opened web player and copied link.' : 'Discord blocks these live streams. Opened web player.');
     return;
   }
 
@@ -1708,6 +1730,12 @@ function isPlaylistUri(uri) {
 
 function getRoomShareUrl() {
   const url = new URL(window.location.href);
+  url.searchParams.set('room', jamRoomId || 'global');
+  return url.toString();
+}
+
+function getRoomShareUrlForBase(baseUrl) {
+  const url = new URL(String(baseUrl || window.location.origin));
   url.searchParams.set('room', jamRoomId || 'global');
   return url.toString();
 }
