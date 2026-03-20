@@ -32,6 +32,38 @@ const REMOTE_SEEK_DRIFT_MS = 2000;
 const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
 const SPOTIFY_MANUAL_PENDING_KEY = 'spotify_manual_pending_v1';
+const LOFI_RADIO_STATIONS = [
+  {
+    id: 'lofigirl',
+    name: 'Lofi Girl - the classic',
+    streamUrl: 'https://play.streamafrica.net/lofiradio',
+    fallbackUrl: 'https://www.youtube.com/watch?v=jfKfPfyJRdk',
+  },
+  {
+    id: 'chillhop',
+    name: 'Chillhop Music',
+    streamUrl: 'https://stream.zeno.fm/f3wvbbqmdg8uv',
+    fallbackUrl: 'https://www.youtube.com/@ChillhopMusic',
+  },
+  {
+    id: 'college',
+    name: 'College Music',
+    streamUrl: 'https://stream.zeno.fm/0r0xa792kwzuv',
+    fallbackUrl: 'https://www.youtube.com/@CollegeMusic',
+  },
+  {
+    id: 'beats',
+    name: 'Lofi Hip Hop beats',
+    streamUrl: 'https://ice4.somafm.com/groovesalad-128-mp3',
+    fallbackUrl: 'https://www.youtube.com/results?search_query=lofi+hip+hop+beats+live',
+  },
+  {
+    id: 'jazzhop',
+    name: 'Jazz Hop Cafe',
+    streamUrl: 'https://ice2.somafm.com/illstreet-128-mp3',
+    fallbackUrl: 'https://www.youtube.com/results?search_query=jazz+hop+cafe+live',
+  },
+];
 
 const $ = id => document.getElementById(id);
 
@@ -143,11 +175,19 @@ const DOM = {
   searchModalResults: $('search-modal-results'),
   btnSearchModalClose: $('btn-search-modal-close'),
   jamSearchResults: $('jam-search-results'),
+  lofiRadio: $('lofi-radio'),
+  lofiRadioList: $('lofi-radio-list'),
   queueList: $('queue-list'),
   queueCount: $('queue-count'),
   btnQueueClear: $('btn-queue-clear'),
   toast: $('toast'),
 };
+
+const lofiRadioAudio = new Audio();
+lofiRadioAudio.preload = 'none';
+
+let lofiRadioStationIndex = 0;
+let lofiRadioAutoSwitchGuard = false;
 
 async function init() {
   restorePendingSpotifyManualAuth();
@@ -178,6 +218,7 @@ async function init() {
   bindQueueControls();
   bindHudControls();
   bindSearchModalControls();
+  initLofiRadio();
   handleSpotifyCallback();
   loadLocalQueue();
   renderQueue();
@@ -286,6 +327,111 @@ function bindQueueControls() {
 function bindSearchModalControls() {
   DOM.btnSearchModalClose?.addEventListener('click', closeSearchModal);
   DOM.searchModalBackdrop?.addEventListener('click', closeSearchModal);
+}
+
+function initLofiRadio() {
+  if (!DOM.lofiRadioList) return;
+
+  renderLofiRadioStations();
+
+  lofiRadioAudio.addEventListener('play', () => {
+    if (spotify.isLoggedIn()) return;
+    const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
+    if (!station) return;
+    updateTrackUIWithRadio(station);
+    updatePlayBtn(true);
+    DOM.npMiniText.textContent = truncate(station.name, 22);
+    DOM.npMini.style.display = 'flex';
+  });
+
+  lofiRadioAudio.addEventListener('pause', () => {
+    if (spotify.isLoggedIn()) return;
+    updatePlayBtn(false);
+  });
+
+  lofiRadioAudio.addEventListener('error', () => {
+    if (spotify.isLoggedIn()) return;
+    if (lofiRadioAutoSwitchGuard) return;
+
+    lofiRadioAutoSwitchGuard = true;
+    showToast('Radio stream unavailable. Switching station...');
+    const nextIndex = (lofiRadioStationIndex + 1) % LOFI_RADIO_STATIONS.length;
+    playLofiStation(nextIndex).catch(() => {
+      const fallback = LOFI_RADIO_STATIONS[lofiRadioStationIndex]?.fallbackUrl;
+      if (fallback) {
+        window.open(fallback, '_blank', 'noopener');
+      }
+    }).finally(() => {
+      setTimeout(() => { lofiRadioAutoSwitchGuard = false; }, 1200);
+    });
+  });
+
+  updateLofiRadioTransportUI();
+}
+
+function renderLofiRadioStations() {
+  if (!DOM.lofiRadioList) return;
+  DOM.lofiRadioList.innerHTML = '';
+
+  LOFI_RADIO_STATIONS.forEach((station, index) => {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'lofi-radio-btn';
+    btn.textContent = station.name;
+    btn.classList.toggle('active', index === lofiRadioStationIndex);
+    btn.addEventListener('click', () => {
+      playLofiStation(index).catch(() => {
+        showToast('Could not start this station');
+      });
+    });
+    DOM.lofiRadioList.appendChild(btn);
+  });
+}
+
+function stopLofiRadio() {
+  try {
+    lofiRadioAudio.pause();
+  } catch {
+    // Ignore pause errors in restricted contexts.
+  }
+}
+
+async function playLofiStation(index) {
+  const station = LOFI_RADIO_STATIONS[index];
+  if (!station) return;
+
+  lofiRadioStationIndex = index;
+  renderLofiRadioStations();
+
+  if (spotify.isLoggedIn()) {
+    showToast('Disconnect Spotify to use The LO-FI Radio');
+    return;
+  }
+
+  if (lofiRadioAudio.src !== station.streamUrl) {
+    lofiRadioAudio.src = station.streamUrl;
+  }
+
+  lofiRadioAudio.volume = (DOM.musicVolume?.value || 10) / 100;
+  await lofiRadioAudio.play();
+
+  updateTrackUIWithRadio(station);
+  updateLofiRadioTransportUI();
+  showToast(`Now playing: ${truncate(station.name, 22)}`);
+}
+
+function updateTrackUIWithRadio(station) {
+  DOM.trackName.textContent = station?.name || 'The LO-FI Radio';
+  DOM.trackArtist.textContent = 'Live radio stream';
+  DOM.trackArt.innerHTML = '<div class="art-default">📻</div>';
+}
+
+function updateLofiRadioTransportUI() {
+  if (spotify.isLoggedIn()) return;
+  DOM.progressFill.style.width = '100%';
+  DOM.timeCurrent.textContent = 'LIVE';
+  DOM.timeTotal.textContent = 'LIVE';
+  updatePlayBtn(!lofiRadioAudio.paused);
 }
 
 function openSearchModal(query, count) {
@@ -1147,7 +1293,7 @@ if (!DOM.btnConnect) {
       spotify.logout();
       syncHostPlaybackLoop();
       DOM.btnConnect.textContent = 'Connect Spotify';
-      DOM.npMini.style.display = 'none';
+      DOM.npMini.style.display = lofiRadioAudio.paused ? 'none' : 'flex';
       DOM.btnConnect.style.display = 'flex';
       resetPlayer();
       showToast('Disconnected from Spotify');
@@ -1238,6 +1384,7 @@ async function handleSpotifyCallback() {
 }
 
 async function connectSpotify() {
+  stopLofiRadio();
   DOM.btnConnect.textContent = 'Connecting...';
   DOM.btnConnect.disabled = true;
 
@@ -1311,7 +1458,16 @@ function bindPlayerControls() {
 
     if (!spotify.isLoggedIn()) {
       startAmbientJam();
-      showToast('Ambient jam is active. Spotify is optional.');
+      const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
+      if (lofiRadioAudio.paused) {
+        try {
+          await playLofiStation(lofiRadioStationIndex);
+        } catch {
+          showToast(`Could not start ${station?.name || 'The LO-FI Radio'}`);
+        }
+      } else {
+        stopLofiRadio();
+      }
       return;
     }
 
@@ -1330,7 +1486,8 @@ function bindPlayerControls() {
 
   DOM.btnPrev.addEventListener('click', async () => {
     if (!spotify.isLoggedIn()) {
-      showToast('Connect Spotify to use track controls');
+      const prevIndex = (lofiRadioStationIndex - 1 + LOFI_RADIO_STATIONS.length) % LOFI_RADIO_STATIONS.length;
+      await playLofiStation(prevIndex);
       return;
     }
     await spotify.previous();
@@ -1339,7 +1496,8 @@ function bindPlayerControls() {
 
   DOM.btnNext.addEventListener('click', async () => {
     if (!spotify.isLoggedIn()) {
-      showToast('Connect Spotify to use track controls');
+      const nextIndex = (lofiRadioStationIndex + 1) % LOFI_RADIO_STATIONS.length;
+      await playLofiStation(nextIndex);
       return;
     }
 
@@ -1353,7 +1511,10 @@ function bindPlayerControls() {
   });
 
   DOM.progressTrack.addEventListener('click', async e => {
-    if (!spotify.isLoggedIn()) return;
+    if (!spotify.isLoggedIn()) {
+      updateLofiRadioTransportUI();
+      return;
+    }
     try {
       const pct = e.offsetX / DOM.progressTrack.offsetWidth;
       await spotify.seekTo(Math.round(pct * spotify.durationMs));
@@ -1369,6 +1530,7 @@ function bindVolumeControls() {
     if (!DOM.musicVolume) return;
     const v = DOM.musicVolume.value / 100;
     spotify.setVolume(v);
+    lofiRadioAudio.volume = v;
   };
 
   const applyAmbientVolume = () => {
@@ -1467,13 +1629,22 @@ function updateProgress(pos, dur) {
 }
 
 function resetPlayer() {
-  DOM.trackName.textContent = isDiscordActivity ? 'Ambient Jam Live' : 'Not Connected';
-  DOM.trackArtist.textContent = isDiscordActivity ? 'Spotify is optional in Discord mode' : 'Connect Spotify to listen';
+  if (!spotify.isLoggedIn()) {
+    DOM.trackName.textContent = 'The LO-FI Radio';
+    DOM.trackArtist.textContent = 'Pick a station or connect Spotify';
+  } else {
+    DOM.trackName.textContent = isDiscordActivity ? 'Ambient Jam Live' : 'Not Connected';
+    DOM.trackArtist.textContent = isDiscordActivity ? 'Spotify is optional in Discord mode' : 'Connect Spotify to listen';
+  }
   DOM.trackArt.innerHTML = '<div class="art-default">♪</div>';
   DOM.progressFill.style.width = '0%';
   DOM.timeCurrent.textContent = '0:00';
   DOM.timeTotal.textContent = '0:00';
   updatePlayBtn(false);
+
+  if (!spotify.isLoggedIn()) {
+    updateLofiRadioTransportUI();
+  }
 }
 
 function updateVoteFooter() {
