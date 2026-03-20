@@ -396,7 +396,33 @@ body.hud-minimal .hud-restore-dash {
 }
 
 .lofi-radio.discord-limited .lofi-radio-btn {
-  opacity: 0.75;
+  display: none;
+}
+
+.btn-disconnect-spotify {
+  border: 1px solid rgba(255,100,100,0.6);
+  background: rgba(255,100,100,0.1);
+  color: #ff6464;
+  border-radius: 50px;
+  padding: 7px 14px;
+  font-family: 'Syne', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--trans);
+  letter-spacing: 0.03em;
+  display: none;
+}
+
+.btn-disconnect-spotify:hover {
+  background: rgba(255,100,100,0.25);
+  border-color: #ff6464;
+}
+
+.btn-disconnect-spotify.show {
+  display: flex;
+  align-items: center;
+  gap: 7px;
 }
 
 .jam-search {

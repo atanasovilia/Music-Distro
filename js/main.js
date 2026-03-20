@@ -78,6 +78,15 @@ const LOFI_RADIO_STATIONS = [
     ],
     fallbackUrl: 'https://www.youtube.com/results?search_query=jazz+hop+cafe+live',
   },
+  {
+    id: 'jazzyoutube',
+    name: 'Jazz Cafe YouTube',
+    streamUrls: [
+      'https://ice2.somafm.com/illstreet-128-mp3',
+      'https://ice2.somafm.com/fluid-128-mp3',
+    ],
+    fallbackUrl: 'https://www.youtube.com/watch?v=HuFYqnbVbzY',
+  },
 ];
 
 const $ = id => document.getElementById(id);
@@ -155,6 +164,7 @@ const DOM = {
   sceneTagline: $('scene-tagline'),
   participants: $('participants'),
   btnConnect: $('btn-spotify-connect'),
+  btnDisconnect: $('btn-disconnect-spotify'),
   npMini: $('now-playing-mini'),
   npMiniText: $('np-mini-text'),
   mixerChannels: $('mixer-channels'),
@@ -377,11 +387,14 @@ function initLofiRadio() {
     updatePlayBtn(true);
     DOM.npMiniText.textContent = truncate(station.name, 22);
     DOM.npMini.style.display = 'flex';
+    publishRadioPlayback(station, true);
   });
 
   lofiRadioAudio.addEventListener('pause', () => {
     if (spotifyLinked) return;
     updatePlayBtn(false);
+    const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
+    if (station) publishRadioPlayback(station, false);
   });
 
   lofiRadioAudio.addEventListener('error', () => {
@@ -485,7 +498,24 @@ async function playLofiStation(index) {
 
   updateTrackUIWithRadio(station);
   updateLofiRadioTransportUI();
+  publishRadioPlayback(station, true);
   showToast(`Now playing: ${truncate(station.name, 22)}`);
+}
+
+function publishRadioPlayback(station, isPlaying = true) {
+  if (!station || isJamHost) return;
+  if (!jamState) return;
+
+  jam.publishPlayback({
+    trackUri: `lofi-radio:${station.id}`,
+    trackName: station.name,
+    artist: 'Live Radio Stream',
+    isPlaying,
+    positionMs: 0,
+    durationMs: 0,
+  }).catch(err => {
+    console.warn('[Jam] Radio broadcast failed:', err?.message || err);
+  });
 }
 
 async function tryStartRadioStream(url) {
@@ -1180,23 +1210,41 @@ async function hostPlaySuggestion(suggestion) {
 }
 
 function maybePublishHostPlayback(force = false) {
-  if (!isJamHost || !spotify.isLoggedIn() || !jamState) return;
+  if (!isJamHost || !jamState) return;
 
   const now = Date.now();
   if (!force && now - lastHostPublishAt < HOST_PLAYBACK_PUBLISH_MS) return;
 
-  const track = spotify.currentTrack;
-  if (!track?.uri) return;
+  // Prioritize Spotify if linked
+  if (spotifyLinked && spotify.currentTrack?.uri) {
+    const track = spotify.currentTrack;
+    lastHostPublishAt = now;
+    jam.publishPlayback({
+      trackUri: track.uri,
+      trackName: track.name,
+      artist: (track.artists || []).map(a => a.name).join(', '),
+      isPlaying: spotify.isPlaying,
+      positionMs: spotify.positionMs || 0,
+      durationMs: spotify.durationMs || 0,
+    }).catch(() => {});
+    return;
+  }
 
-  lastHostPublishAt = now;
-  jam.publishPlayback({
-    trackUri: track.uri,
-    trackName: track.name,
-    artist: (track.artists || []).map(a => a.name).join(', '),
-    isPlaying: spotify.isPlaying,
-    positionMs: spotify.positionMs || 0,
-    durationMs: spotify.durationMs || 0,
-  }).catch(() => {});
+  // Otherwise publish radio if playing
+  if (!spotifyLinked && !lofiRadioAudio.paused) {
+    const station = LOFI_RADIO_STATIONS[lofiRadioStationIndex];
+    if (station) {
+      lastHostPublishAt = now;
+      jam.publishPlayback({
+        trackUri: `lofi-radio:${station.id}`,
+        trackName: station.name,
+        artist: 'Live Radio Stream',
+        isPlaying: true,
+        positionMs: 0,
+        durationMs: 0,
+      }).catch(() => {});
+    }
+  }
 }
 
 function syncHostPlaybackLoop() {
@@ -1232,6 +1280,22 @@ function getRemoteTargetPosition(pb) {
 
 async function applyRemotePlayback(pb) {
   try {
+    // Check if remote playback is a radio station
+    if (pb.trackUri?.startsWith('lofi-radio:')) {
+      const stationId = pb.trackUri.replace('lofi-radio:', '');
+      const stationIndex = LOFI_RADIO_STATIONS.findIndex(s => s.id === stationId);
+      if (stationIndex >= 0) {
+        if (!spotifyLinked) {
+          await playLofiStation(stationIndex);
+          if (!pb.isPlaying) {
+            stopLofiRadio();
+          }
+        }
+        updateVoteFooter();
+        return;
+      }
+    }
+
     const currentUri = spotify.currentTrack?.uri;
     const targetPos = getRemoteTargetPosition(pb);
 
@@ -1409,8 +1473,9 @@ if (!DOM.btnConnect) {
       spotifyLinked = false;
       syncHostPlaybackLoop();
       DOM.btnConnect.textContent = 'Connect Spotify';
-      DOM.npMini.style.display = lofiRadioAudio.paused ? 'none' : 'flex';
       DOM.btnConnect.style.display = 'flex';
+      DOM.btnDisconnect?.classList.remove('show');
+      DOM.npMini.style.display = lofiRadioAudio.paused ? 'none' : 'flex';
       resetPlayer();
       showToast('Disconnected from Spotify');
     } else {
@@ -1446,6 +1511,18 @@ if (!DOM.btnConnect) {
         showToast(`Spotify error: ${err?.message || 'Login failed'}`);
       }
     }
+  });
+
+  DOM.btnDisconnect?.addEventListener('click', async () => {
+    spotify.logout();
+    spotifyLinked = false;
+    syncHostPlaybackLoop();
+    DOM.btnConnect.textContent = 'Connect Spotify';
+    DOM.btnConnect.style.display = 'flex';
+    DOM.btnDisconnect?.classList.remove('show');
+    DOM.npMini.style.display = lofiRadioAudio.paused ? 'none' : 'flex';
+    resetPlayer();
+    showToast('Disconnected from Spotify. Enjoy the radio!');
   });
 }
 
@@ -1514,7 +1591,8 @@ async function connectSpotify() {
   if (isDiscordActivity) {
     spotifyLinked = true;
     DOM.npMini.style.display = 'none';
-    DOM.btnConnect.style.display = 'flex';
+    DOM.btnConnect.style.display = 'none';
+    DOM.btnDisconnect?.classList.add('show');
     DOM.btnConnect.textContent = 'Disconnect Spotify';
     DOM.btnConnect.disabled = false;
     showToast('Spotify linked in Discord. Search works here; playback works best in web app.');
@@ -1526,8 +1604,9 @@ async function connectSpotify() {
     const musicVol = DOM.musicVolume ? (DOM.musicVolume.value / 100) : 0.1;
     spotify.setVolume(musicVol);
     DOM.btnConnect.style.display = 'none';
+    DOM.btnDisconnect?.classList.add('show');
     DOM.npMini.style.display = 'flex';
-    DOM.btnConnect.disabled = false;
+    DOM.btnDisconnect.disabled = false;
     syncHostPlaybackLoop();
     if (isJamHost) {
       maybePublishHostPlayback(true);
@@ -1561,6 +1640,7 @@ async function connectSpotify() {
     syncHostPlaybackLoop();
     showToast('Spotify: ' + msg);
     DOM.btnConnect.style.display = 'flex';
+    DOM.btnDisconnect?.classList.remove('show');
     DOM.btnConnect.textContent = 'Connect Spotify';
     DOM.btnConnect.disabled = false;
   };
@@ -1571,6 +1651,7 @@ async function connectSpotify() {
     spotifyLinked = false;
     syncHostPlaybackLoop();
     DOM.btnConnect.style.display = 'flex';
+    DOM.btnDisconnect?.classList.remove('show');
     DOM.btnConnect.textContent = 'Connect Spotify';
     DOM.btnConnect.disabled = false;
   }
