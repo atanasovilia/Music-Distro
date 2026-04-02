@@ -377,6 +377,109 @@ function bindSearchModalControls() {
   DOM.searchModalBackdrop?.addEventListener('click', closeSearchModal);
 }
 
+<<<<<<< Updated upstream
+=======
+function bindFocusTimerControls() {
+  if (!DOM.focusTimer) return;
+
+  DOM.btnFocusToggle?.addEventListener('click', event => {
+    event.stopPropagation();
+    setFocusTimerPanelOpen(!focusTimerPanelOpen);
+  });
+
+  DOM.focusTimerPanel?.addEventListener('click', event => {
+    event.stopPropagation();
+  });
+
+  DOM.focusTimerPanel?.querySelectorAll('[data-focus-minutes]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const minutes = Number(btn.dataset.focusMinutes) || 25;
+      if (!canControlFocusTimer(true)) return;
+
+      try {
+        await jam.setFocusTimer(minutes * 60 * 1000);
+        showToast(`Lock In set to ${minutes} minutes`);
+      } catch {
+        showToast('Could not update Lock In');
+      }
+    });
+  });
+
+  DOM.btnFocusStart?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.startFocusTimer();
+      showToast('Lock In started');
+    } catch {
+      showToast('Could not start Lock In');
+    }
+  });
+
+  DOM.btnFocusPause?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.pauseFocusTimer();
+      showToast('Lock In paused');
+    } catch {
+      showToast('Could not pause Lock In');
+    }
+  });
+
+  DOM.btnFocusReset?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.resetFocusTimer();
+      showToast('Lock In reset');
+    } catch {
+      showToast('Could not reset Lock In');
+    }
+  });
+
+  document.addEventListener('click', event => {
+    if (!focusTimerPanelOpen) return;
+    if (DOM.focusTimer?.contains(event.target)) return;
+    setFocusTimerPanelOpen(false);
+  });
+
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && focusTimerPanelOpen) {
+      setFocusTimerPanelOpen(false);
+    }
+  });
+}
+
+function setFocusTimerPanelOpen(isOpen) {
+  focusTimerPanelOpen = !!isOpen;
+  DOM.focusTimer?.classList.toggle('open', focusTimerPanelOpen);
+  DOM.btnFocusToggle?.setAttribute('aria-expanded', String(focusTimerPanelOpen));
+  DOM.focusTimerPanel?.setAttribute('aria-hidden', String(!focusTimerPanelOpen));
+}
+
+function canControlFocusTimer(showMessage = false) {
+  if (!jamState) {
+    if (showMessage) showToast('Room sync is still loading');
+    return false;
+  }
+
+  if (isJamHost) return true;
+
+  if (showMessage) {
+    showToast(jamState?.hostName ? 'Only the room host can control Lock In' : 'Become host to control Lock In');
+  }
+  return false;
+}
+
+function startFocusTimerUiLoop() {
+  clearInterval(focusTimerUiTick);
+  focusTimerUiTick = setInterval(() => {
+    renderFocusTimer();
+  }, FOCUS_TIMER_TICK_MS);
+}
+
+>>>>>>> Stashed changes
 function initLofiRadio() {
   if (!DOM.lofiRadioList) return;
 
@@ -1877,6 +1980,124 @@ function updateVoteFooter() {
   DOM.voteFooter.textContent = `${n} listening · ${suggestionCount} suggestions · ${hostLine}`;
 }
 
+<<<<<<< Updated upstream
+=======
+function clampFocusTimerDuration(value) {
+  const durationMs = Number(value) || DEFAULT_FOCUS_DURATION_MS;
+  return Math.min(MAX_FOCUS_DURATION_MS, Math.max(60 * 1000, durationMs));
+}
+
+function getFocusTimerState(source = jamState?.focusTimer) {
+  const durationMs = clampFocusTimerDuration(source?.durationMs);
+  const storedRemaining = Number(source?.remainingMs);
+  const baseRemaining = Number.isFinite(storedRemaining)
+    ? Math.min(durationMs, Math.max(0, storedRemaining))
+    : durationMs;
+  const startedAt = Number(source?.startedAt) || 0;
+  const running = !!source?.isRunning && startedAt > 0;
+  const remainingMs = running
+    ? Math.max(0, baseRemaining - Math.max(0, Date.now() - startedAt))
+    : baseRemaining;
+  const isComplete = remainingMs <= 0;
+
+  return {
+    durationMs,
+    remainingMs,
+    isRunning: running && !isComplete,
+    isComplete,
+    updatedBy: source?.updatedBy ? String(source.updatedBy) : null,
+  };
+}
+
+function maybeAutoCompleteFocusTimer(timer) {
+  const currentVersion = Number(jamState?.version || 0);
+  if (!jamState || !isJamHost || !jamState?.focusTimer?.isRunning || !timer.isComplete || !currentVersion) {
+    return;
+  }
+
+  if (lastFocusAutoCompleteVersion === currentVersion) return;
+  lastFocusAutoCompleteVersion = currentVersion;
+
+  jam.completeFocusTimer().catch(() => {
+    lastFocusAutoCompleteVersion = 0;
+  });
+}
+
+function renderFocusTimer() {
+  if (!DOM.focusTimer) return;
+
+  const timer = getFocusTimerState();
+  const displayTime = msToTime(timer.remainingMs);
+  const isSyncReady = !!jamState;
+  const hostName = jamState?.hostName || (isJamHost ? jamUserName : '');
+  const rawRunning = !!jamState?.focusTimer?.isRunning;
+  const durationMinutes = Math.round(timer.durationMs / 60000);
+
+  let chipText = `${displayTime} ready`;
+  let statusText = 'Ready';
+  let metaText = hostName
+    ? `Hosted by ${hostName}. Everyone in the room sees this timer.`
+    : 'Become host to run a shared timer for the room.';
+
+  if (!isSyncReady) {
+    statusText = 'Syncing';
+    metaText = 'Connecting to room sync...';
+  } else if (timer.isRunning) {
+    chipText = `${displayTime} live`;
+    statusText = 'Live now';
+    metaText = isJamHost
+      ? 'You are running Lock In for the room.'
+      : `Lock In is live with ${hostName || 'the room host'}.`;
+  } else if (timer.isComplete) {
+    chipText = '0:00 done';
+    statusText = 'Complete';
+    metaText = isJamHost
+      ? 'The Lock In session finished. Start again when ready.'
+      : `Lock In completed${hostName ? ` by ${hostName}` : ''}.`;
+  } else if (timer.remainingMs < timer.durationMs) {
+    chipText = `${displayTime} paused`;
+    statusText = 'Paused';
+    metaText = isJamHost
+      ? 'The room timer is paused. You can resume or reset it.'
+      : `Lock In is paused${hostName ? ` by ${hostName}` : ''}.`;
+  } else if (isJamHost) {
+    metaText = 'Choose a Lock In preset and start when everyone is ready.';
+  }
+
+  DOM.focusTimer.classList.toggle('active', timer.isRunning);
+  DOM.focusTimerChip.textContent = chipText;
+  DOM.focusTimerDisplay.textContent = displayTime;
+  DOM.focusTimerPanelStatus.textContent = statusText;
+  DOM.focusTimerMeta.textContent = metaText;
+
+  const presets = DOM.focusTimerPanel?.querySelectorAll('[data-focus-minutes]') || [];
+  presets.forEach(btn => {
+    const presetMinutes = Number(btn.dataset.focusMinutes) || 0;
+    btn.classList.toggle('active', presetMinutes === durationMinutes);
+    btn.disabled = !isJamHost || !isSyncReady;
+  });
+
+  if (DOM.btnFocusStart) {
+    DOM.btnFocusStart.textContent = timer.remainingMs < timer.durationMs && !timer.isComplete ? 'Resume' : 'Start';
+    DOM.btnFocusStart.disabled = !isJamHost || !isSyncReady || timer.isRunning;
+  }
+  if (DOM.btnFocusPause) {
+    DOM.btnFocusPause.disabled = !isJamHost || !isSyncReady || !rawRunning;
+  }
+  if (DOM.btnFocusReset) {
+    DOM.btnFocusReset.disabled = !isJamHost || !isSyncReady;
+  }
+
+  const currentVersion = Number(jamState?.version || 0);
+  if (rawRunning && timer.isComplete && currentVersion && lastFocusCompletionVersion !== currentVersion) {
+    lastFocusCompletionVersion = currentVersion;
+    showToast('Lock In complete');
+  }
+
+  maybeAutoCompleteFocusTimer(timer);
+}
+
+>>>>>>> Stashed changes
 function msToTime(ms) {
   if (!ms) return '0:00';
   const s = Math.floor(ms / 1000);
