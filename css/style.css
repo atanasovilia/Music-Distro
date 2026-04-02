@@ -227,53 +227,6 @@ body {
   gap: 8px;
 }
 
-.focus-timer-custom {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.focus-timer-custom-inputs {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.focus-custom-field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-family: 'DM Mono', monospace;
-  font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.focus-custom-input {
-  width: 100%;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid var(--glass-border);
-  background: rgba(255,255,255,0.06);
-  color: var(--text);
-  font-family: 'Syne', sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  outline: none;
-  transition: all var(--trans);
-}
-
-.focus-custom-input:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 1px var(--accent-dim), 0 0 10px var(--glow);
-}
-
-.focus-custom-input::-webkit-outer-spin-button,
-.focus-custom-input::-webkit-inner-spin-button {
-  margin: 0;
-}
-
 .focus-preset-btn,
 .focus-action-btn {
   flex: 1;
@@ -1522,10 +1475,6 @@ body { transition: --accent var(--trans); }
   .focus-timer-panel {
     width: min(258px, calc(100vw - 24px));
     right: -8px;
-  }
-
-  .focus-timer-custom-inputs {
-    grid-template-columns: 1fr;
   }
 
   .scene-btn {

@@ -37,7 +37,7 @@ const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
 const SPOTIFY_MANUAL_PENDING_KEY = 'spotify_manual_pending_v1';
 const DEFAULT_FOCUS_DURATION_MS = 25 * 60 * 1000;
-const MAX_FOCUS_DURATION_MS = 2 * 60 * 60 * 1000;
+const MAX_FOCUS_DURATION_MS = 3 * 60 * 60 * 1000;
 const FOCUS_TIMER_TICK_MS = 250;
 const LOFI_RADIO_STATIONS = [
   {
@@ -179,9 +179,6 @@ const DOM = {
   focusTimerPanelStatus: $('focus-timer-panel-status'),
   focusTimerDisplay: $('focus-timer-display'),
   focusTimerMeta: $('focus-timer-meta'),
-  focusCustomHours: $('focus-custom-hours'),
-  focusCustomMinutes: $('focus-custom-minutes'),
-  btnFocusApplyCustom: $('btn-focus-apply-custom'),
   btnFocusStart: $('btn-focus-start'),
   btnFocusPause: $('btn-focus-pause'),
   btnFocusReset: $('btn-focus-reset'),
@@ -426,33 +423,6 @@ function bindFocusTimerControls() {
     });
   });
 
-  const applyCustomFocusDuration = async () => {
-    if (!canControlFocusTimer(true)) return;
-
-    const durationMs = readCustomFocusDurationFromInputs(true);
-    if (!durationMs) return;
-
-    try {
-      await jam.setFocusTimer(durationMs);
-      showToast(`Room focus set to ${formatFocusDurationLabel(durationMs)}`);
-    } catch {
-      showToast('Could not update room focus');
-    }
-  };
-
-  DOM.btnFocusApplyCustom?.addEventListener('click', () => {
-    applyCustomFocusDuration().catch(() => {});
-  });
-
-  [DOM.focusCustomHours, DOM.focusCustomMinutes].forEach(input => {
-    input?.addEventListener('keydown', event => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        applyCustomFocusDuration().catch(() => {});
-      }
-    });
-  });
-
   DOM.btnFocusStart?.addEventListener('click', async () => {
     if (!canControlFocusTimer(true)) return;
 
@@ -525,59 +495,6 @@ function startFocusTimerUiLoop() {
   focusTimerUiTick = setInterval(() => {
     renderFocusTimer();
   }, FOCUS_TIMER_TICK_MS);
-}
-
-function normalizeFocusCustomInput(value) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return 0;
-  return Math.max(0, Math.floor(numeric));
-}
-
-function writeCustomFocusDurationInputs(durationMs) {
-  if (!DOM.focusCustomHours || !DOM.focusCustomMinutes) return;
-
-  const safeDuration = Math.min(MAX_FOCUS_DURATION_MS, Math.max(60 * 1000, Number(durationMs) || DEFAULT_FOCUS_DURATION_MS));
-  const totalMinutes = Math.round(safeDuration / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (document.activeElement !== DOM.focusCustomHours) {
-    DOM.focusCustomHours.value = String(hours);
-  }
-  if (document.activeElement !== DOM.focusCustomMinutes) {
-    DOM.focusCustomMinutes.value = String(minutes);
-  }
-}
-
-function readCustomFocusDurationFromInputs(showMessage = false) {
-  const hours = normalizeFocusCustomInput(DOM.focusCustomHours?.value);
-  const minutes = normalizeFocusCustomInput(DOM.focusCustomMinutes?.value);
-
-  if (hours === 0 && minutes === 0) {
-    if (showMessage) showToast('Choose at least 1 minute');
-    return 0;
-  }
-
-  const totalMinutes = (hours * 60) + minutes;
-  const durationMs = totalMinutes * 60 * 1000;
-
-  if (durationMs > MAX_FOCUS_DURATION_MS) {
-    writeCustomFocusDurationInputs(MAX_FOCUS_DURATION_MS);
-    if (showMessage) showToast('Custom room focus currently supports up to 2 hours');
-    return 0;
-  }
-
-  return durationMs;
-}
-
-function formatFocusDurationLabel(durationMs) {
-  const totalMinutes = Math.round(durationMs / 60000);
-  const hours = Math.floor(totalMinutes / 60);
-  const minutes = totalMinutes % 60;
-
-  if (hours && minutes) return `${hours}h ${minutes}m`;
-  if (hours) return `${hours}h`;
-  return `${minutes}m`;
 }
 
 function initLofiRadio() {
@@ -2160,7 +2077,7 @@ function renderFocusTimer() {
       ? 'The room timer is paused. You can resume or reset it.'
       : `Room focus is paused${hostName ? ` by ${hostName}` : ''}.`;
   } else if (isJamHost) {
-    metaText = 'Choose a preset or set a custom time up to 2 hours for the room.';
+    metaText = 'Choose a room timer preset and start when everyone is ready.';
   }
 
   DOM.focusTimer.classList.toggle('active', timer.isRunning);
@@ -2168,7 +2085,6 @@ function renderFocusTimer() {
   DOM.focusTimerDisplay.textContent = displayTime;
   DOM.focusTimerPanelStatus.textContent = statusText;
   DOM.focusTimerMeta.textContent = metaText;
-  writeCustomFocusDurationInputs(timer.durationMs);
 
   const presets = DOM.focusTimerPanel?.querySelectorAll('[data-focus-minutes]') || [];
   presets.forEach(btn => {
@@ -2176,17 +2092,6 @@ function renderFocusTimer() {
     btn.classList.toggle('active', presetMinutes === durationMinutes);
     btn.disabled = !isJamHost || !isSyncReady;
   });
-
-  if (DOM.focusCustomHours) {
-    DOM.focusCustomHours.max = String(Math.floor(MAX_FOCUS_DURATION_MS / (60 * 60 * 1000)));
-    DOM.focusCustomHours.disabled = !isJamHost || !isSyncReady;
-  }
-  if (DOM.focusCustomMinutes) {
-    DOM.focusCustomMinutes.disabled = !isJamHost || !isSyncReady;
-  }
-  if (DOM.btnFocusApplyCustom) {
-    DOM.btnFocusApplyCustom.disabled = !isJamHost || !isSyncReady;
-  }
 
   if (DOM.btnFocusStart) {
     DOM.btnFocusStart.textContent = timer.remainingMs < timer.durationMs && !timer.isComplete ? 'Resume' : 'Start';

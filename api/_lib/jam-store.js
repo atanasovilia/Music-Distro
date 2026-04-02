@@ -41,8 +41,8 @@ local function clamp_focus_duration(value)
   if duration < 60000 then
     duration = 60000
   end
-  if duration > 7200000 then
-    duration = 7200000
+  if duration > 10800000 then
+    duration = 10800000
   end
   return duration
 end
@@ -403,7 +403,7 @@ function redisRoomKey(roomId) {
 
 function clampFocusDuration(value) {
   const duration = Number(value) || 25 * 60 * 1000;
-  return Math.min(2 * 60 * 60 * 1000, Math.max(60 * 1000, duration));
+  return Math.min(3 * 60 * 60 * 1000, Math.max(60 * 1000, duration));
 }
 
 function normalizeFocusTimer(input) {
