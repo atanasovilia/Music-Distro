@@ -26,12 +26,19 @@ let jamSearchMode = 'songs';
 let lastRemotePlaybackStamp = 0;
 let lastHostPublishAt = 0;
 let hostPublishTimer = null;
+let focusTimerUiTick = null;
+let focusTimerPanelOpen = false;
+let lastFocusCompletionVersion = 0;
+let lastFocusAutoCompleteVersion = 0;
 
 const HOST_PLAYBACK_PUBLISH_MS = 1500;
 const REMOTE_SEEK_DRIFT_MS = 2000;
 const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
 const SPOTIFY_MANUAL_PENDING_KEY = 'spotify_manual_pending_v1';
+const DEFAULT_FOCUS_DURATION_MS = 25 * 60 * 1000;
+const MAX_FOCUS_DURATION_MS = 3 * 60 * 60 * 1000;
+const FOCUS_TIMER_TICK_MS = 250;
 const LOFI_RADIO_STATIONS = [
   {
     id: 'lofigirl',
@@ -165,6 +172,16 @@ const DOM = {
   participants: $('participants'),
   btnConnect: $('btn-spotify-connect'),
   btnDisconnect: $('btn-disconnect-spotify'),
+  focusTimer: $('focus-timer'),
+  btnFocusToggle: $('btn-focus-toggle'),
+  focusTimerPanel: $('focus-timer-panel'),
+  focusTimerChip: $('focus-timer-chip'),
+  focusTimerPanelStatus: $('focus-timer-panel-status'),
+  focusTimerDisplay: $('focus-timer-display'),
+  focusTimerMeta: $('focus-timer-meta'),
+  btnFocusStart: $('btn-focus-start'),
+  btnFocusPause: $('btn-focus-pause'),
+  btnFocusReset: $('btn-focus-reset'),
   npMini: $('now-playing-mini'),
   npMiniText: $('np-mini-text'),
   mixerChannels: $('mixer-channels'),
@@ -247,10 +264,13 @@ async function init() {
   bindQueueControls();
   bindHudControls();
   bindSearchModalControls();
+  bindFocusTimerControls();
+  startFocusTimerUiLoop();
   initLofiRadio();
   handleSpotifyCallback();
   loadLocalQueue();
   renderQueue();
+  renderFocusTimer();
 
   discord.onParticipantsChange = () => {
     discord.renderAvatars(DOM.participants);
@@ -377,8 +397,6 @@ function bindSearchModalControls() {
   DOM.searchModalBackdrop?.addEventListener('click', closeSearchModal);
 }
 
-<<<<<<< Updated upstream
-=======
 function bindFocusTimerControls() {
   if (!DOM.focusTimer) return;
 
@@ -478,8 +496,6 @@ function startFocusTimerUiLoop() {
     renderFocusTimer();
   }, FOCUS_TIMER_TICK_MS);
 }
-
->>>>>>> Stashed changes
 function initLofiRadio() {
   if (!DOM.lofiRadioList) return;
 
@@ -1218,6 +1234,7 @@ async function onJamState(state) {
 
   renderSuggestionList(state?.suggestions || []);
   updateVoteFooter();
+  renderFocusTimer();
 
   const pb = state?.playback;
   if (!pb || isJamHost) return;
@@ -1980,8 +1997,6 @@ function updateVoteFooter() {
   DOM.voteFooter.textContent = `${n} listening · ${suggestionCount} suggestions · ${hostLine}`;
 }
 
-<<<<<<< Updated upstream
-=======
 function clampFocusTimerDuration(value) {
   const durationMs = Number(value) || DEFAULT_FOCUS_DURATION_MS;
   return Math.min(MAX_FOCUS_DURATION_MS, Math.max(60 * 1000, durationMs));
@@ -2097,11 +2112,14 @@ function renderFocusTimer() {
   maybeAutoCompleteFocusTimer(timer);
 }
 
->>>>>>> Stashed changes
 function msToTime(ms) {
   if (!ms) return '0:00';
   const s = Math.floor(ms / 1000);
-  const m = Math.floor(s / 60);
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (h > 0) {
+    return `${h}:${String(m).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
+  }
   return `${m}:${String(s % 60).padStart(2, '0')}`;
 }
 

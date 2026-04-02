@@ -97,6 +97,193 @@ body {
 
 .spotify-status { display: flex; align-items: center; gap: 10px; margin-left: 20px; }
 
+.focus-timer {
+  position: relative;
+}
+
+.focus-timer-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 126px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.focus-timer-toggle:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.focus-timer.open .focus-timer-toggle {
+  border-color: var(--accent);
+  box-shadow: 0 0 18px rgba(0,0,0,0.18);
+}
+
+.focus-timer-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  line-height: 1.05;
+}
+
+.focus-timer-label {
+  font-size: 8px;
+  color: var(--text-muted);
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.focus-timer-chip {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.01em;
+}
+
+.focus-timer-live {
+  width: 7px;
+  height: 7px;
+  margin-left: auto;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.22);
+  background: transparent;
+  opacity: 0.45;
+  transition: all var(--trans);
+}
+
+.focus-timer.active .focus-timer-live {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--glow);
+  opacity: 1;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+.focus-timer-panel {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  width: 258px;
+  padding: 14px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  z-index: 260;
+  transition: opacity var(--trans), transform var(--trans);
+}
+
+.focus-timer.open .focus-timer-panel {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.focus-timer-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.focus-timer-panel-title,
+.focus-timer-panel-status,
+.focus-timer-meta {
+  font-family: 'DM Mono', monospace;
+}
+
+.focus-timer-panel-title {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--text-muted);
+}
+
+.focus-timer-panel-status {
+  font-size: 10px;
+  color: var(--accent);
+}
+
+.focus-timer-display {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.focus-timer-presets,
+.focus-timer-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.focus-preset-btn,
+.focus-action-btn {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--trans);
+}
+
+.focus-preset-btn {
+  padding: 7px 0;
+  font-size: 10px;
+  font-family: 'DM Mono', monospace;
+  letter-spacing: 0.08em;
+}
+
+.focus-action-btn {
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 700;
+  font-family: 'Syne', sans-serif;
+}
+
+.focus-preset-btn:hover,
+.focus-action-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+
+.focus-preset-btn.active,
+.focus-action-btn.primary {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
+.focus-action-btn.primary:hover {
+  background: var(--accent);
+  color: #000;
+}
+
+.focus-preset-btn:disabled,
+.focus-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.focus-timer-meta {
+  font-size: 10px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
 .btn-connect {
   display: flex; align-items: center; gap: 7px;
   padding: 7px 14px; border-radius: 50px;
@@ -1122,7 +1309,9 @@ body { transition: --accent var(--trans); }
     top: 0;
     z-index: 200;
     gap: 10px;
+    min-height: 56px;
     padding: 0 10px;
+    flex-wrap: wrap;
   }
 
   .logo-text {
@@ -1131,6 +1320,18 @@ body { transition: --accent var(--trans); }
 
   .participants-wrap {
     gap: 6px;
+  }
+
+  .spotify-status {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    padding-bottom: 8px;
+  }
+
+  .focus-timer-panel {
+    right: 0;
   }
 
   .scene-panel {
@@ -1256,6 +1457,24 @@ body { transition: --accent var(--trans); }
   .btn-connect {
     padding: 6px 9px;
     font-size: 11px;
+  }
+
+  .focus-timer-toggle {
+    min-width: 112px;
+    padding: 6px 9px;
+  }
+
+  .focus-timer-label {
+    display: none;
+  }
+
+  .focus-timer-chip {
+    font-size: 11px;
+  }
+
+  .focus-timer-panel {
+    width: min(258px, calc(100vw - 24px));
+    right: -8px;
   }
 
   .scene-btn {

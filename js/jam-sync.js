@@ -178,6 +178,26 @@ export class JamSync {
     return this._action('playback', { playback });
   }
 
+  async setFocusTimer(durationMs) {
+    return this._action('focus-set', { durationMs });
+  }
+
+  async startFocusTimer() {
+    return this._action('focus-start');
+  }
+
+  async pauseFocusTimer() {
+    return this._action('focus-pause');
+  }
+
+  async resetFocusTimer() {
+    return this._action('focus-reset');
+  }
+
+  async completeFocusTimer() {
+    return this._action('focus-complete');
+  }
+
   _setConsistencyToken(token) {
     if (token) {
       this.consistencyToken = token;
