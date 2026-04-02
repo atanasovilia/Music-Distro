@@ -26,12 +26,18 @@ let jamSearchMode = 'songs';
 let lastRemotePlaybackStamp = 0;
 let lastHostPublishAt = 0;
 let hostPublishTimer = null;
+let focusTimerUiTick = null;
+let focusTimerPanelOpen = false;
+let lastFocusCompletionVersion = 0;
+let lastFocusAutoCompleteVersion = 0;
 
 const HOST_PLAYBACK_PUBLISH_MS = 1500;
 const REMOTE_SEEK_DRIFT_MS = 2000;
 const LOCAL_QUEUE_KEY = 'lofi_local_queue_v1';
 const HUD_MINIMAL_KEY = 'lofi_hud_minimal_v1';
 const SPOTIFY_MANUAL_PENDING_KEY = 'spotify_manual_pending_v1';
+const DEFAULT_FOCUS_DURATION_MS = 25 * 60 * 1000;
+const FOCUS_TIMER_TICK_MS = 250;
 const LOFI_RADIO_STATIONS = [
   {
     id: 'lofigirl',
@@ -165,6 +171,16 @@ const DOM = {
   participants: $('participants'),
   btnConnect: $('btn-spotify-connect'),
   btnDisconnect: $('btn-disconnect-spotify'),
+  focusTimer: $('focus-timer'),
+  btnFocusToggle: $('btn-focus-toggle'),
+  focusTimerPanel: $('focus-timer-panel'),
+  focusTimerChip: $('focus-timer-chip'),
+  focusTimerPanelStatus: $('focus-timer-panel-status'),
+  focusTimerDisplay: $('focus-timer-display'),
+  focusTimerMeta: $('focus-timer-meta'),
+  btnFocusStart: $('btn-focus-start'),
+  btnFocusPause: $('btn-focus-pause'),
+  btnFocusReset: $('btn-focus-reset'),
   npMini: $('now-playing-mini'),
   npMiniText: $('np-mini-text'),
   mixerChannels: $('mixer-channels'),
@@ -247,10 +263,13 @@ async function init() {
   bindQueueControls();
   bindHudControls();
   bindSearchModalControls();
+  bindFocusTimerControls();
+  startFocusTimerUiLoop();
   initLofiRadio();
   handleSpotifyCallback();
   loadLocalQueue();
   renderQueue();
+  renderFocusTimer();
 
   discord.onParticipantsChange = () => {
     discord.renderAvatars(DOM.participants);
@@ -375,6 +394,106 @@ function bindQueueControls() {
 function bindSearchModalControls() {
   DOM.btnSearchModalClose?.addEventListener('click', closeSearchModal);
   DOM.searchModalBackdrop?.addEventListener('click', closeSearchModal);
+}
+
+function bindFocusTimerControls() {
+  if (!DOM.focusTimer) return;
+
+  DOM.btnFocusToggle?.addEventListener('click', event => {
+    event.stopPropagation();
+    setFocusTimerPanelOpen(!focusTimerPanelOpen);
+  });
+
+  DOM.focusTimerPanel?.addEventListener('click', event => {
+    event.stopPropagation();
+  });
+
+  DOM.focusTimerPanel?.querySelectorAll('[data-focus-minutes]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const minutes = Number(btn.dataset.focusMinutes) || 25;
+      if (!canControlFocusTimer(true)) return;
+
+      try {
+        await jam.setFocusTimer(minutes * 60 * 1000);
+        showToast(`Room focus set to ${minutes} minutes`);
+      } catch {
+        showToast('Could not update room focus');
+      }
+    });
+  });
+
+  DOM.btnFocusStart?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.startFocusTimer();
+      showToast('Room focus started');
+    } catch {
+      showToast('Could not start room focus');
+    }
+  });
+
+  DOM.btnFocusPause?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.pauseFocusTimer();
+      showToast('Room focus paused');
+    } catch {
+      showToast('Could not pause room focus');
+    }
+  });
+
+  DOM.btnFocusReset?.addEventListener('click', async () => {
+    if (!canControlFocusTimer(true)) return;
+
+    try {
+      await jam.resetFocusTimer();
+      showToast('Room focus reset');
+    } catch {
+      showToast('Could not reset room focus');
+    }
+  });
+
+  document.addEventListener('click', event => {
+    if (!focusTimerPanelOpen) return;
+    if (DOM.focusTimer?.contains(event.target)) return;
+    setFocusTimerPanelOpen(false);
+  });
+
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && focusTimerPanelOpen) {
+      setFocusTimerPanelOpen(false);
+    }
+  });
+}
+
+function setFocusTimerPanelOpen(isOpen) {
+  focusTimerPanelOpen = !!isOpen;
+  DOM.focusTimer?.classList.toggle('open', focusTimerPanelOpen);
+  DOM.btnFocusToggle?.setAttribute('aria-expanded', String(focusTimerPanelOpen));
+  DOM.focusTimerPanel?.setAttribute('aria-hidden', String(!focusTimerPanelOpen));
+}
+
+function canControlFocusTimer(showMessage = false) {
+  if (!jamState) {
+    if (showMessage) showToast('Room sync is still loading');
+    return false;
+  }
+
+  if (isJamHost) return true;
+
+  if (showMessage) {
+    showToast(jamState?.hostName ? 'Only the room host can control focus' : 'Become host to control room focus');
+  }
+  return false;
+}
+
+function startFocusTimerUiLoop() {
+  clearInterval(focusTimerUiTick);
+  focusTimerUiTick = setInterval(() => {
+    renderFocusTimer();
+  }, FOCUS_TIMER_TICK_MS);
 }
 
 function initLofiRadio() {
@@ -1115,6 +1234,7 @@ async function onJamState(state) {
 
   renderSuggestionList(state?.suggestions || []);
   updateVoteFooter();
+  renderFocusTimer();
 
   const pb = state?.playback;
   if (!pb || isJamHost) return;
@@ -1875,6 +1995,121 @@ function updateVoteFooter() {
   const resolvedHostName = jamState?.hostName || (jamState?.hostId === jamUserId ? jamUserName : '');
   const hostLine = resolvedHostName ? `host: ${resolvedHostName}` : 'no host';
   DOM.voteFooter.textContent = `${n} listening · ${suggestionCount} suggestions · ${hostLine}`;
+}
+
+function clampFocusTimerDuration(value) {
+  const durationMs = Number(value) || DEFAULT_FOCUS_DURATION_MS;
+  return Math.min(2 * 60 * 60 * 1000, Math.max(60 * 1000, durationMs));
+}
+
+function getFocusTimerState(source = jamState?.focusTimer) {
+  const durationMs = clampFocusTimerDuration(source?.durationMs);
+  const storedRemaining = Number(source?.remainingMs);
+  const baseRemaining = Number.isFinite(storedRemaining)
+    ? Math.min(durationMs, Math.max(0, storedRemaining))
+    : durationMs;
+  const startedAt = Number(source?.startedAt) || 0;
+  const running = !!source?.isRunning && startedAt > 0;
+  const remainingMs = running
+    ? Math.max(0, baseRemaining - Math.max(0, Date.now() - startedAt))
+    : baseRemaining;
+  const isComplete = remainingMs <= 0;
+
+  return {
+    durationMs,
+    remainingMs,
+    isRunning: running && !isComplete,
+    isComplete,
+    updatedBy: source?.updatedBy ? String(source.updatedBy) : null,
+  };
+}
+
+function maybeAutoCompleteFocusTimer(timer) {
+  const currentVersion = Number(jamState?.version || 0);
+  if (!jamState || !isJamHost || !jamState?.focusTimer?.isRunning || !timer.isComplete || !currentVersion) {
+    return;
+  }
+
+  if (lastFocusAutoCompleteVersion === currentVersion) return;
+  lastFocusAutoCompleteVersion = currentVersion;
+
+  jam.completeFocusTimer().catch(() => {
+    lastFocusAutoCompleteVersion = 0;
+  });
+}
+
+function renderFocusTimer() {
+  if (!DOM.focusTimer) return;
+
+  const timer = getFocusTimerState();
+  const displayTime = msToTime(timer.remainingMs);
+  const isSyncReady = !!jamState;
+  const hostName = jamState?.hostName || (isJamHost ? jamUserName : '');
+  const rawRunning = !!jamState?.focusTimer?.isRunning;
+  const durationMinutes = Math.round(timer.durationMs / 60000);
+
+  let chipText = `${displayTime} ready`;
+  let statusText = 'Ready';
+  let metaText = hostName
+    ? `Hosted by ${hostName}. Everyone in the room sees this timer.`
+    : 'Become host to run a shared timer for the room.';
+
+  if (!isSyncReady) {
+    statusText = 'Syncing';
+    metaText = 'Connecting to room sync...';
+  } else if (timer.isRunning) {
+    chipText = `${displayTime} live`;
+    statusText = 'Live now';
+    metaText = isJamHost
+      ? 'You are running the shared focus timer for the room.'
+      : `Shared focus is live with ${hostName || 'the room host'}.`;
+  } else if (timer.isComplete) {
+    chipText = '0:00 done';
+    statusText = 'Complete';
+    metaText = isJamHost
+      ? 'The room focus session finished. Start again when ready.'
+      : `Focus session completed${hostName ? ` by ${hostName}` : ''}.`;
+  } else if (timer.remainingMs < timer.durationMs) {
+    chipText = `${displayTime} paused`;
+    statusText = 'Paused';
+    metaText = isJamHost
+      ? 'The room timer is paused. You can resume or reset it.'
+      : `Room focus is paused${hostName ? ` by ${hostName}` : ''}.`;
+  } else if (isJamHost) {
+    metaText = 'Choose a preset and start the shared timer when everyone is ready.';
+  }
+
+  DOM.focusTimer.classList.toggle('active', timer.isRunning);
+  DOM.focusTimerChip.textContent = chipText;
+  DOM.focusTimerDisplay.textContent = displayTime;
+  DOM.focusTimerPanelStatus.textContent = statusText;
+  DOM.focusTimerMeta.textContent = metaText;
+
+  const presets = DOM.focusTimerPanel?.querySelectorAll('[data-focus-minutes]') || [];
+  presets.forEach(btn => {
+    const presetMinutes = Number(btn.dataset.focusMinutes) || 0;
+    btn.classList.toggle('active', presetMinutes === durationMinutes);
+    btn.disabled = !isJamHost || !isSyncReady;
+  });
+
+  if (DOM.btnFocusStart) {
+    DOM.btnFocusStart.textContent = timer.remainingMs < timer.durationMs && !timer.isComplete ? 'Resume' : 'Start';
+    DOM.btnFocusStart.disabled = !isJamHost || !isSyncReady || timer.isRunning;
+  }
+  if (DOM.btnFocusPause) {
+    DOM.btnFocusPause.disabled = !isJamHost || !isSyncReady || !rawRunning;
+  }
+  if (DOM.btnFocusReset) {
+    DOM.btnFocusReset.disabled = !isJamHost || !isSyncReady;
+  }
+
+  const currentVersion = Number(jamState?.version || 0);
+  if (rawRunning && timer.isComplete && currentVersion && lastFocusCompletionVersion !== currentVersion) {
+    lastFocusCompletionVersion = currentVersion;
+    showToast('Focus session complete');
+  }
+
+  maybeAutoCompleteFocusTimer(timer);
 }
 
 function msToTime(ms) {

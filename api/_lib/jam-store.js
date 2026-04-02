@@ -36,6 +36,17 @@ local function now_ms()
   return tonumber(parts[1]) * 1000 + math.floor(tonumber(parts[2]) / 1000)
 end
 
+local function clamp_focus_duration(value)
+  local duration = tonumber(value) or 1500000
+  if duration < 60000 then
+    duration = 60000
+  end
+  if duration > 7200000 then
+    duration = 7200000
+  end
+  return duration
+end
+
 local function default_state(room_id)
   return {
     roomId = room_id,
@@ -44,6 +55,13 @@ local function default_state(room_id)
     hostName = null,
     suggestions = {},
     playback = null,
+    focusTimer = {
+      durationMs = 1500000,
+      remainingMs = 1500000,
+      isRunning = false,
+      startedAt = 0,
+      updatedBy = null
+    },
     updatedAt = 0
   }
 end
@@ -81,6 +99,26 @@ local function normalize_suggestion(item)
   }
 end
 
+local function normalize_focus_timer(item)
+  local source = type(item) == "table" and item or {}
+  local duration_ms = clamp_focus_duration(source.durationMs)
+  local remaining_ms = tonumber(source.remainingMs) or duration_ms
+  if remaining_ms < 0 then
+    remaining_ms = 0
+  end
+  if remaining_ms > duration_ms then
+    remaining_ms = duration_ms
+  end
+
+  return {
+    durationMs = duration_ms,
+    remainingMs = remaining_ms,
+    isRunning = not not source.isRunning,
+    startedAt = tonumber(source.startedAt) or 0,
+    updatedBy = as_string(source.updatedBy) or null
+  }
+end
+
 local function normalize_state(state, room_id)
   if type(state) ~= "table" then
     state = default_state(room_id)
@@ -106,6 +144,8 @@ local function normalize_state(state, room_id)
   if type(state.playback) ~= "table" then
     state.playback = null
   end
+
+  state.focusTimer = normalize_focus_timer(state.focusTimer)
 
   return state
 end
@@ -270,6 +310,75 @@ elseif action == "playback" then
     }
     bump()
   end
+elseif action == "focus-set" then
+  if actor_id and state.hostId == actor_id then
+    local duration_ms = clamp_focus_duration(payload.durationMs)
+    state.focusTimer = {
+      durationMs = duration_ms,
+      remainingMs = duration_ms,
+      isRunning = false,
+      startedAt = 0,
+      updatedBy = actor_name
+    }
+    bump()
+  end
+elseif action == "focus-start" then
+  if actor_id and state.hostId == actor_id then
+    local timer = normalize_focus_timer(state.focusTimer)
+    local remaining_ms = tonumber(timer.remainingMs) or tonumber(timer.durationMs) or 1500000
+    if remaining_ms <= 0 then
+      remaining_ms = tonumber(timer.durationMs) or 1500000
+    end
+    state.focusTimer = {
+      durationMs = tonumber(timer.durationMs) or 1500000,
+      remainingMs = remaining_ms,
+      isRunning = true,
+      startedAt = now_ms(),
+      updatedBy = actor_name
+    }
+    bump()
+  end
+elseif action == "focus-pause" then
+  if actor_id and state.hostId == actor_id then
+    local timer = normalize_focus_timer(state.focusTimer)
+    local remaining_ms = tonumber(timer.remainingMs) or tonumber(timer.durationMs) or 1500000
+    if timer.isRunning and tonumber(timer.startedAt) and tonumber(timer.startedAt) > 0 then
+      remaining_ms = math.max(0, remaining_ms - math.max(0, now_ms() - tonumber(timer.startedAt)))
+    end
+    state.focusTimer = {
+      durationMs = tonumber(timer.durationMs) or 1500000,
+      remainingMs = remaining_ms,
+      isRunning = false,
+      startedAt = 0,
+      updatedBy = actor_name
+    }
+    bump()
+  end
+elseif action == "focus-reset" then
+  if actor_id and state.hostId == actor_id then
+    local timer = normalize_focus_timer(state.focusTimer)
+    local duration_ms = tonumber(timer.durationMs) or 1500000
+    state.focusTimer = {
+      durationMs = duration_ms,
+      remainingMs = duration_ms,
+      isRunning = false,
+      startedAt = 0,
+      updatedBy = actor_name
+    }
+    bump()
+  end
+elseif action == "focus-complete" then
+  if actor_id and state.hostId == actor_id then
+    local timer = normalize_focus_timer(state.focusTimer)
+    state.focusTimer = {
+      durationMs = tonumber(timer.durationMs) or 1500000,
+      remainingMs = 0,
+      isRunning = false,
+      startedAt = 0,
+      updatedBy = actor_name
+    }
+    bump()
+  end
 end
 
 if changed then
@@ -292,6 +401,27 @@ function redisRoomKey(roomId) {
   return `lofi-spaces:jam:room:${roomKey(roomId)}`;
 }
 
+function clampFocusDuration(value) {
+  const duration = Number(value) || 25 * 60 * 1000;
+  return Math.min(2 * 60 * 60 * 1000, Math.max(60 * 1000, duration));
+}
+
+function normalizeFocusTimer(input) {
+  const durationMs = clampFocusDuration(input?.durationMs);
+  const rawRemaining = Number(input?.remainingMs);
+  const remainingMs = Number.isFinite(rawRemaining)
+    ? Math.min(durationMs, Math.max(0, rawRemaining))
+    : durationMs;
+
+  return {
+    durationMs,
+    remainingMs,
+    isRunning: !!input?.isRunning,
+    startedAt: Number(input?.startedAt) || 0,
+    updatedBy: input?.updatedBy ? String(input.updatedBy) : null,
+  };
+}
+
 function defaultState(roomId) {
   return {
     roomId,
@@ -300,6 +430,7 @@ function defaultState(roomId) {
     hostName: null,
     suggestions: [],
     playback: null,
+    focusTimer: normalizeFocusTimer(null),
     updatedAt: 0,
   };
 }
@@ -364,6 +495,7 @@ function normalizeState(input, roomId) {
           startedAt: Number(state.playback.startedAt) || 0,
         }
       : null,
+    focusTimer: normalizeFocusTimer(state.focusTimer),
     updatedAt: Number(state.updatedAt) || 0,
   };
 }
@@ -470,6 +602,84 @@ function applyAction(state, action, payload, actor, now = Date.now()) {
       positionMs: Number(pb.positionMs) || 0,
       durationMs: Number(pb.durationMs) || 0,
       startedAt: now,
+    };
+    bump(state, now);
+    return true;
+  }
+
+  if (action === 'focus-set') {
+    if (state.hostId !== actorId) return false;
+    const durationMs = clampFocusDuration(payload?.durationMs);
+
+    state.focusTimer = {
+      durationMs,
+      remainingMs: durationMs,
+      isRunning: false,
+      startedAt: 0,
+      updatedBy: actorName,
+    };
+    bump(state, now);
+    return true;
+  }
+
+  if (action === 'focus-start') {
+    if (state.hostId !== actorId) return false;
+    const timer = normalizeFocusTimer(state.focusTimer);
+    const remainingMs = timer.remainingMs > 0 ? timer.remainingMs : timer.durationMs;
+
+    state.focusTimer = {
+      durationMs: timer.durationMs,
+      remainingMs,
+      isRunning: true,
+      startedAt: now,
+      updatedBy: actorName,
+    };
+    bump(state, now);
+    return true;
+  }
+
+  if (action === 'focus-pause') {
+    if (state.hostId !== actorId) return false;
+    const timer = normalizeFocusTimer(state.focusTimer);
+    const elapsedMs = timer.isRunning && timer.startedAt ? Math.max(0, now - timer.startedAt) : 0;
+    const remainingMs = Math.max(0, timer.remainingMs - elapsedMs);
+
+    state.focusTimer = {
+      durationMs: timer.durationMs,
+      remainingMs,
+      isRunning: false,
+      startedAt: 0,
+      updatedBy: actorName,
+    };
+    bump(state, now);
+    return true;
+  }
+
+  if (action === 'focus-reset') {
+    if (state.hostId !== actorId) return false;
+    const timer = normalizeFocusTimer(state.focusTimer);
+
+    state.focusTimer = {
+      durationMs: timer.durationMs,
+      remainingMs: timer.durationMs,
+      isRunning: false,
+      startedAt: 0,
+      updatedBy: actorName,
+    };
+    bump(state, now);
+    return true;
+  }
+
+  if (action === 'focus-complete') {
+    if (state.hostId !== actorId) return false;
+    const timer = normalizeFocusTimer(state.focusTimer);
+
+    state.focusTimer = {
+      durationMs: timer.durationMs,
+      remainingMs: 0,
+      isRunning: false,
+      startedAt: 0,
+      updatedBy: actorName,
     };
     bump(state, now);
     return true;

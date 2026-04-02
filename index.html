@@ -53,6 +53,42 @@
 
     <div class="spotify-status" id="spotify-status">
       <button class="btn-connect btn-hud-toggle" id="btn-toggle-hud" type="button">Hide HUD</button>
+      <div class="focus-timer" id="focus-timer">
+        <button
+          class="focus-timer-toggle"
+          id="btn-focus-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="focus-timer-panel"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.39 1.42-1.42a9.953 9.953 0 0 0-1.41-1.41L17.61 6A9.96 9.96 0 1 0 22 14h-2a8 8 0 1 1-2.34-5.66z"/>
+          </svg>
+          <span class="focus-timer-text">
+            <span class="focus-timer-label">Focus</span>
+            <span class="focus-timer-chip" id="focus-timer-chip">25:00 ready</span>
+          </span>
+          <span class="focus-timer-live" id="focus-timer-live" aria-hidden="true"></span>
+        </button>
+        <div class="focus-timer-panel glass" id="focus-timer-panel" aria-hidden="true">
+          <div class="focus-timer-panel-head">
+            <span class="focus-timer-panel-title">ROOM FOCUS</span>
+            <span class="focus-timer-panel-status" id="focus-timer-panel-status">Ready</span>
+          </div>
+          <div class="focus-timer-display" id="focus-timer-display">25:00</div>
+          <div class="focus-timer-presets" id="focus-timer-presets">
+            <button class="focus-preset-btn" data-focus-minutes="15" type="button">15m</button>
+            <button class="focus-preset-btn active" data-focus-minutes="25" type="button">25m</button>
+            <button class="focus-preset-btn" data-focus-minutes="50" type="button">50m</button>
+          </div>
+          <div class="focus-timer-actions">
+            <button class="focus-action-btn primary" id="btn-focus-start" type="button">Start</button>
+            <button class="focus-action-btn" id="btn-focus-pause" type="button">Pause</button>
+            <button class="focus-action-btn" id="btn-focus-reset" type="button">Reset</button>
+          </div>
+          <div class="focus-timer-meta" id="focus-timer-meta">Host can run a shared timer for the room.</div>
+        </div>
+      </div>
       <button class="btn-connect" id="btn-spotify-connect">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 0C5.4 0 0 5.4 0 12s5.4 12 12 12 12-5.4 12-12S18.66 0 12 0zm5.521 17.34c-.24.359-.66.48-1.021.24-2.82-1.74-6.36-2.101-10.561-1.141-.418.122-.779-.179-.899-.539-.12-.421.18-.78.54-.9 4.56-1.021 8.52-.6 11.64 1.32.42.18.479.659.301 1.02zm1.44-3.3c-.301.42-.841.6-1.262.3-3.239-1.98-8.159-2.58-11.939-1.38-.479.12-1.02-.12-1.14-.6-.12-.48.12-1.021.6-1.141C9.6 9.9 15 10.561 18.72 12.84c.361.181.54.78.241 1.2zm.12-3.36C15.24 8.4 8.82 8.16 5.16 9.301c-.6.179-1.2-.181-1.38-.721-.18-.601.18-1.2.72-1.381 4.26-1.26 11.28-1.02 15.721 1.621.539.3.719 1.02.419 1.56-.299.421-1.02.599-1.559.3z"/>
