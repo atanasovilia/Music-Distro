@@ -81,6 +81,19 @@
             <button class="focus-preset-btn active" data-focus-minutes="25" type="button">25m</button>
             <button class="focus-preset-btn" data-focus-minutes="50" type="button">50m</button>
           </div>
+          <div class="focus-timer-custom">
+            <div class="focus-timer-custom-inputs">
+              <label class="focus-custom-field" for="focus-custom-hours">
+                <span>hrs</span>
+                <input id="focus-custom-hours" class="focus-custom-input" type="number" min="0" max="2" step="1" value="0" inputmode="numeric">
+              </label>
+              <label class="focus-custom-field" for="focus-custom-minutes">
+                <span>min</span>
+                <input id="focus-custom-minutes" class="focus-custom-input" type="number" min="0" max="59" step="1" value="25" inputmode="numeric">
+              </label>
+            </div>
+            <button class="focus-action-btn" id="btn-focus-apply-custom" type="button">Apply Time</button>
+          </div>
           <div class="focus-timer-actions">
             <button class="focus-action-btn primary" id="btn-focus-start" type="button">Start</button>
             <button class="focus-action-btn" id="btn-focus-pause" type="button">Pause</button>
